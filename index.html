@@ -407,7 +407,7 @@ td { padding: 13px 14px; vertical-align: middle; }
 // Change this to your deployed backend URL when you deploy!
 const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? 'http://localhost:8000'
-  : 'https://intern-production-117d.up.railway.app'; // <-- update after deploy
+  : 'https://YOUR-BACKEND-URL.railway.app';   // <-- update after deploy
 
 // ── State ────────────────────────────────────────────────────────────────────
 let allJobs = [];
@@ -507,8 +507,8 @@ function renderTable() {
       <td><span class="badge ${locBadge(j.location)}">${j.location}</span></td>
       <td><span class="source-pill">${j.source}</span></td>
       <td class="mono" style="font-size:11px;color:var(--muted)">${j.posted || '–'}</td>
-      <td style="white-space:nowrap" onclick="event.stopPropagation()">
-        <button class="save-btn ${savedIds.has(j.id)?'saved':''}" onclick="toggleSave(${j.id})">${savedIds.has(j.id)?'♥':'♡'}</button>
+      <td style="white-space:nowrap;min-width:80px" onclick="event.stopPropagation()">
+        <button class="save-btn ${savedIds.has(j.id)?'saved':''}" onclick="toggleSave(${j.id})" title="Save" style="font-size:18px;margin-right:6px;opacity:${savedIds.has(j.id)?'1':'0.5'}">${savedIds.has(j.id)?'♥':'♡'}</button>
         <a class="link-btn" href="${j.url}" target="_blank">open ↗</a>
       </td>
     </tr>
