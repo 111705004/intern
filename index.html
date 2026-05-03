@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NUS Finance Internship Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0b0d10;
+  --surface: #13161b;
+  --surface2: #1a1e25;
+  --border: #252930;
+  --accent: #4ade80;
+  --accent2: #60a5fa;
+  --accent3: #f59e0b;
+  --accent4: #e879f9;
+  --text: #e8eaf0;
+  --muted: #6b7280;
+  --danger: #f87171;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  min-height: 100vh;
+}
+code, .mono { font-family: 'DM Mono', monospace; }
+
+/* Layout */
+.shell { display: flex; min-height: 100vh; }
+.sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 28px 0;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+}
+.main { margin-left: 220px; padding: 36px 40px; flex: 1; }
+
+/* Sidebar */
+.logo {
+  padding: 0 24px 28px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.logo-text { font-size: 13px; font-weight: 700; letter-spacing: 0.1em; color: var(--accent); text-transform: uppercase; }
+.logo-sub { font-size: 10px; color: var(--muted); margin-top: 2px; font-family: 'DM Mono', monospace; }
+.nav-item {
+  padding: 9px 24px;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: color 0.15s, background 0.15s;
+  border-left: 2px solid transparent;
+}
+.nav-item:hover { color: var(--text); background: var(--surface2); }
+.nav-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(74,222,128,0.05); }
+.nav-icon { width: 16px; height: 16px; opacity: 0.7; }
+.sidebar-footer { margin-top: auto; padding: 16px 24px; border-top: 1px solid var(--border); }
+.sidebar-footer p { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
+
+/* Header */
+.page-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 28px; }
+.page-title { font-size: 26px; font-weight: 700; }
+.page-sub { font-size: 13px; color: var(--muted); margin-top: 4px; font-family: 'DM Mono', monospace; }
+.live-badge {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--accent);
+  font-family: 'DM Mono', monospace;
+  background: rgba(74,222,128,0.08);
+  padding: 5px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(74,222,128,0.2);
+}
+.live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 1.8s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* Stats row */
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
+.stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 18px;
+}
+.stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-family: 'DM Mono', monospace; }
+.stat-val { font-size: 28px; font-weight: 700; margin-top: 4px; }
+.stat-val.green { color: var(--accent); }
+.stat-val.blue { color: var(--accent2); }
+.stat-val.amber { color: var(--accent3); }
+.stat-val.pink { color: var(--accent4); }
+
+/* Controls */
+.controls { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+.search-wrap { flex: 1; min-width: 200px; position: relative; }
+.search-wrap input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 9px 14px 9px 36px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: 'Syne', sans-serif;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.search-wrap input:focus { border-color: var(--accent); }
+.search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 14px; pointer-events: none; }
+select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 9px 12px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: 'Syne', sans-serif;
+  outline: none;
+  cursor: pointer;
+}
+select:focus { border-color: var(--accent); }
+.btn-scrape {
+  background: var(--accent);
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  padding: 9px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: 'Syne', sans-serif;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  display: flex; align-items: center; gap: 6px;
+}
+.btn-scrape:hover { opacity: 0.85; }
+.btn-scrape:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Jobs table */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead tr { border-bottom: 1px solid var(--border); }
+th { padding: 10px 14px; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-family: 'DM Mono', monospace; font-weight: 400; }
+tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.1s; cursor: pointer; }
+tbody tr:hover { background: var(--surface2); }
+td { padding: 13px 14px; vertical-align: middle; }
+.job-title-cell { font-weight: 600; color: var(--text); }
+.job-co { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+/* Badges */
+.badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: 'DM Mono', monospace;
+  padding: 2px 8px;
+  border-radius: 3px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.b-vc    { background: rgba(232,121,249,0.15); color: var(--accent4); }
+.b-pe    { background: rgba(74,222,128,0.12); color: var(--accent); }
+.b-ibd   { background: rgba(96,165,250,0.12); color: var(--accent2); }
+.b-corp  { background: rgba(245,158,11,0.12); color: var(--accent3); }
+.b-sg    { background: rgba(255,255,255,0.06); color: var(--muted); }
+.b-hk    { background: rgba(248,113,113,0.12); color: var(--danger); }
+
+/* Source pill */
+.source-pill {
+  font-size: 10px;
+  font-family: 'DM Mono', monospace;
+  color: var(--muted);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 2px 7px;
+}
+
+/* Action col */
+.link-btn {
+  color: var(--accent2);
+  font-size: 12px;
+  text-decoration: none;
+  opacity: 0.7;
+  transition: opacity 0.1s;
+  font-family: 'DM Mono', monospace;
+}
+.link-btn:hover { opacity: 1; }
+.save-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0 6px;
+  opacity: 0.4;
+  transition: opacity 0.1s;
+}
+.save-btn:hover, .save-btn.saved { opacity: 1; }
+
+/* Loading / states */
+.loading-row td {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+}
+.spinner {
+  display: inline-block;
+  width: 18px; height: 18px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Progress bar */
+.progress-wrap { margin-bottom: 16px; display: none; }
+.progress-bg { height: 2px; background: var(--border); border-radius: 1px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.4s; }
+.progress-label { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 5px; }
+
+/* Tabs */
+.tabs { display: flex; gap: 2px; margin-bottom: 24px; border-bottom: 1px solid var(--border); }
+.tab {
+  padding: 10px 18px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Saved / Tracker */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+}
+.kanban { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.kanban-col { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+.kanban-col h3 { font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-family: 'DM Mono', monospace; margin-bottom: 12px; }
+.kanban-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+.kanban-card-title { font-weight: 600; }
+.kanban-card-co { color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+/* Error toast */
+.toast {
+  position: fixed;
+  bottom: 24px; right: 24px;
+  background: var(--surface);
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  padding: 12px 18px;
+  font-size: 12px;
+  color: var(--danger);
+  font-family: 'DM Mono', monospace;
+  display: none;
+  z-index: 999;
+}
+
+@media (max-width: 900px) {
+  .sidebar { display: none; }
+  .main { margin-left: 0; padding: 20px 16px; }
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .kanban { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <nav class="sidebar">
+    <div class="logo">
+      <div class="logo-text">FinTrack</div>
+      <div class="logo-sub">NUS Career Portal</div>
+    </div>
+    <div class="nav-item active" onclick="switchTab('search')">
+      <span class="nav-icon">⌕</span> Job Search
+    </div>
+    <div class="nav-item" onclick="switchTab('saved')">
+      <span class="nav-icon">♡</span> Saved <span id="saved-nav-count" style="margin-left:auto;font-size:10px;font-family:'DM Mono',monospace;color:var(--accent);"></span>
+    </div>
+    <div class="nav-item" onclick="switchTab('tracker')">
+      <span class="nav-icon">◫</span> Tracker
+    </div>
+    <div class="sidebar-footer">
+      <p id="last-updated">–</p>
+    </div>
+  </nav>
+
+  <main class="main">
+    <div id="page-search">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Finance Internships</div>
+          <div class="page-sub">VC · PE · IBD · Corporate Dev — SG &amp; HK</div>
+        </div>
+        <div class="live-badge"><span class="live-dot"></span> Live Scraper</div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="stat-label">Total Jobs</div><div class="stat-val green" id="s-total">–</div></div>
+        <div class="stat"><div class="stat-label">VC / PE</div><div class="stat-val pink" id="s-vcpe">–</div></div>
+        <div class="stat"><div class="stat-label">IBD</div><div class="stat-val blue" id="s-ibd">–</div></div>
+        <div class="stat"><div class="stat-label">Corp Dev</div><div class="stat-val amber" id="s-corp">–</div></div>
+      </div>
+
+      <div class="controls">
+        <div class="search-wrap">
+          <span class="search-icon">⌕</span>
+          <input type="text" id="q" placeholder="Search title or company…" oninput="renderTable()" />
+        </div>
+        <select id="type-f" onchange="renderTable()">
+          <option value="">All Types</option>
+          <option value="VC">VC</option>
+          <option value="PE">PE</option>
+          <option value="IBD">IBD</option>
+          <option value="Corp Dev">Corp Dev</option>
+        </select>
+        <select id="loc-f" onchange="renderTable()">
+          <option value="">All Locations</option>
+          <option value="Singapore">Singapore</option>
+          <option value="Hong Kong">Hong Kong</option>
+        </select>
+        <button class="btn-scrape" id="scrape-btn" onclick="fetchJobs()">
+          <span id="scrape-icon">↻</span> Scrape Now
+        </button>
+      </div>
+
+      <div class="progress-wrap" id="progress-wrap">
+        <div class="progress-bg"><div class="progress-fill" id="progress-fill"></div></div>
+        <div class="progress-label" id="progress-label">Initialising scrapers…</div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Position</th>
+              <th>Type</th>
+              <th>Location</th>
+              <th>Source</th>
+              <th>Posted</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="job-tbody">
+            <tr class="loading-row"><td colspan="6">Click <strong>Scrape Now</strong> to load live jobs</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="page-saved" style="display:none;">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Saved Jobs</div>
+          <div class="page-sub">Jobs you've bookmarked</div>
+        </div>
+      </div>
+      <div class="table-wrap" id="saved-table-wrap">
+        <div class="empty-state">No saved jobs yet — click ♡ in the search list</div>
+      </div>
+    </div>
+
+    <div id="page-tracker" style="display:none;">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Application Tracker</div>
+          <div class="page-sub">Track every stage</div>
+        </div>
+      </div>
+      <div class="kanban" id="kanban-board"></div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Config ──────────────────────────────────────────────────────────────────
+// Change this to your deployed backend URL when you deploy!
+const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:8000'
+  : 'https://YOUR-BACKEND-URL.railway.app';   // <-- update after deploy
+
+// ── State ────────────────────────────────────────────────────────────────────
+let allJobs = [];
+let savedIds = new Set(JSON.parse(localStorage.getItem('saved') || '[]'));
+const kanbanData = JSON.parse(localStorage.getItem('kanban') || JSON.stringify({
+  "Bookmarked":[], "Applied":[], "Interviewing":[], "Offer/Rejected":[]
+}));
+
+// ── Fetch ─────────────────────────────────────────────────────────────────────
+async function fetchJobs() {
+  const btn = document.getElementById('scrape-btn');
+  const progressWrap = document.getElementById('progress-wrap');
+  const fill = document.getElementById('progress-fill');
+  const label = document.getElementById('progress-label');
+
+  btn.disabled = true;
+  document.getElementById('scrape-icon').innerHTML = '<span class="spinner"></span>';
+  progressWrap.style.display = 'block';
+
+  // Animate progress bar while waiting
+  const steps = [
+    [15, 'Scraping MyCareersFuture…'],
+    [35, 'Scraping LinkedIn SG…'],
+    [55, 'Scraping LinkedIn HK…'],
+    [70, 'Scraping eFinancialCareers…'],
+    [85, 'Scraping InternSG…'],
+    [95, 'Deduplicating results…'],
+  ];
+  let stepIdx = 0;
+  const progressInterval = setInterval(() => {
+    if (stepIdx < steps.length) {
+      fill.style.width = steps[stepIdx][0] + '%';
+      label.textContent = steps[stepIdx][1];
+      stepIdx++;
+    }
+  }, 1800);
+
+  try {
+    const r = await fetch(`${API}/jobs`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    allJobs = data.jobs || [];
+
+    clearInterval(progressInterval);
+    fill.style.width = '100%';
+    label.textContent = `✓ Found ${allJobs.length} jobs — ${new Date().toLocaleTimeString()}`;
+    document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+
+    updateStats();
+    renderTable();
+
+    setTimeout(() => { progressWrap.style.display = 'none'; }, 2000);
+  } catch (e) {
+    clearInterval(progressInterval);
+    showToast('Backend not reachable. Run the Python server first: uvicorn main:app --reload');
+    label.textContent = '✗ Connection failed — is the backend running?';
+    fill.style.width = '0%';
+  } finally {
+    btn.disabled = false;
+    document.getElementById('scrape-icon').textContent = '↻';
+  }
+}
+
+// ── Table ─────────────────────────────────────────────────────────────────────
+function filterJobs() {
+  const q = document.getElementById('q').value.toLowerCase();
+  const t = document.getElementById('type-f').value;
+  const l = document.getElementById('loc-f').value;
+  return allJobs.filter(j =>
+    (!q || j.title.toLowerCase().includes(q) || j.company.toLowerCase().includes(q)) &&
+    (!t || j.type === t) &&
+    (!l || j.location.includes(l))
+  );
+}
+
+function badgeClass(type) {
+  return { VC:'b-vc', PE:'b-pe', IBD:'b-ibd', 'Corp Dev':'b-corp' }[type] || 'b-sg';
+}
+function locBadge(loc) {
+  return loc.includes('Hong Kong') ? 'b-hk' : 'b-sg';
+}
+
+function renderTable() {
+  const jobs = filterJobs();
+  const tbody = document.getElementById('job-tbody');
+  if (!jobs.length) {
+    tbody.innerHTML = `<tr class="loading-row"><td colspan="6">No results found</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = jobs.map(j => `
+    <tr onclick="window.open('${j.url}','_blank')">
+      <td>
+        <div class="job-title-cell">${j.title}</div>
+        <div class="job-co">${j.company}</div>
+      </td>
+      <td><span class="badge ${badgeClass(j.type)}">${j.type}</span></td>
+      <td><span class="badge ${locBadge(j.location)}">${j.location}</span></td>
+      <td><span class="source-pill">${j.source}</span></td>
+      <td class="mono" style="font-size:11px;color:var(--muted)">${j.posted || '–'}</td>
+      <td style="white-space:nowrap" onclick="event.stopPropagation()">
+        <button class="save-btn ${savedIds.has(j.id)?'saved':''}" onclick="toggleSave(${j.id})">${savedIds.has(j.id)?'♥':'♡'}</button>
+        <a class="link-btn" href="${j.url}" target="_blank">open ↗</a>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function updateStats() {
+  document.getElementById('s-total').textContent = allJobs.length;
+  document.getElementById('s-vcpe').textContent = allJobs.filter(j=>j.type==='VC'||j.type==='PE').length;
+  document.getElementById('s-ibd').textContent = allJobs.filter(j=>j.type==='IBD').length;
+  document.getElementById('s-corp').textContent = allJobs.filter(j=>j.type==='Corp Dev').length;
+}
+
+// ── Save ──────────────────────────────────────────────────────────────────────
+function toggleSave(id) {
+  savedIds.has(id) ? savedIds.delete(id) : savedIds.add(id);
+  localStorage.setItem('saved', JSON.stringify([...savedIds]));
+  const count = savedIds.size;
+  document.getElementById('saved-nav-count').textContent = count || '';
+  renderTable();
+  renderSaved();
+}
+
+function renderSaved() {
+  const saved = allJobs.filter(j => savedIds.has(j.id));
+  const wrap = document.getElementById('saved-table-wrap');
+  if (!saved.length) { wrap.innerHTML = '<div class="empty-state">No saved jobs yet — click ♡ in the search list</div>'; return; }
+  wrap.innerHTML = `<table>
+    <thead><tr><th>Position</th><th>Type</th><th>Location</th><th>Source</th><th></th></tr></thead>
+    <tbody>${saved.map(j=>`
+      <tr onclick="window.open('${j.url}','_blank')">
+        <td><div class="job-title-cell">${j.title}</div><div class="job-co">${j.company}</div></td>
+        <td><span class="badge ${badgeClass(j.type)}">${j.type}</span></td>
+        <td><span class="badge ${locBadge(j.location)}">${j.location}</span></td>
+        <td><span class="source-pill">${j.source}</span></td>
+        <td onclick="event.stopPropagation()"><button class="save-btn saved" onclick="toggleSave(${j.id})">♥</button></td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+
+// ── Kanban ────────────────────────────────────────────────────────────────────
+function renderKanban() {
+  const board = document.getElementById('kanban-board');
+  board.innerHTML = Object.entries(kanbanData).map(([stage, cards]) => `
+    <div class="kanban-col">
+      <h3>${stage} <span style="color:var(--accent);margin-left:4px">${cards.length}</span></h3>
+      ${cards.map(c=>`<div class="kanban-card"><div class="kanban-card-title">${c.title}</div><div class="kanban-card-co">${c.company}</div></div>`).join('')}
+      <button onclick="addToKanban('${stage}')" style="width:100%;margin-top:6px;background:none;border:1px dashed var(--border);border-radius:4px;padding:6px;font-size:11px;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;">+ add</button>
+    </div>
+  `).join('');
+}
+
+function addToKanban(stage) {
+  const title = prompt('Job title:'); if (!title) return;
+  const company = prompt('Company:'); if (!company) return;
+  kanbanData[stage].push({ title, company });
+  localStorage.setItem('kanban', JSON.stringify(kanbanData));
+  renderKanban();
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+function switchTab(name) {
+  ['search','saved','tracker'].forEach(t => {
+    document.getElementById('page-'+t).style.display = t===name?'block':'none';
+  });
+  document.querySelectorAll('.nav-item').forEach((el,i) => {
+    el.classList.toggle('active', ['search','saved','tracker'][i]===name);
+  });
+  if (name==='saved') renderSaved();
+  if (name==='tracker') renderKanban();
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  setTimeout(() => t.style.display='none', 5000);
+}
+
+// Init
+document.getElementById('saved-nav-count').textContent = savedIds.size || '';
+</script>
+</body>
+</html>
