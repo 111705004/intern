@@ -314,6 +314,9 @@ td { padding: 13px 14px; vertical-align: middle; }
     <div class="nav-item" onclick="switchTab('people')">
       <span class="nav-icon">◉</span> Key People
     </div>
+    <div class="nav-item" onclick="switchTab('events')">
+      <span class="nav-icon">◎</span> Events
+    </div>
     <div class="sidebar-footer">
       <p id="last-updated">–</p>
     </div>
@@ -459,6 +462,32 @@ td { padding: 13px 14px; vertical-align: middle; }
         </select>
       </div>
       <div id="people-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;"></div>
+    </div>
+    <div id="page-events" style="display:none;">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Events & Speakers</div>
+          <div class="page-sub">Eventbrite · Tech in Asia · e27 · NUS — live scraped</div>
+        </div>
+        <button class="btn-scrape" onclick="fetchEvents()" id="events-btn" style="height:38px"><span id="events-icon">↻</span> Scrape Events</button>
+      </div>
+      <div class="controls" style="margin-bottom:20px">
+        <select id="ev-relevance" onchange="renderEvents()">
+          <option value="">All Events</option>
+          <option value="🔥 High">🔥 High Relevance (VC/PE/Startup)</option>
+          <option value="⭐ Medium">⭐ Medium Relevance</option>
+        </select>
+        <select id="ev-source" onchange="renderEvents()">
+          <option value="">All Sources</option>
+          <option value="Eventbrite">Eventbrite</option>
+          <option value="Tech in Asia">Tech in Asia</option>
+          <option value="e27">e27</option>
+          <option value="NUS">NUS</option>
+        </select>
+      </div>
+      <div id="events-grid" style="display:flex;flex-direction:column;gap:10px;">
+        <div style="color:var(--muted);font-family:DM Mono,monospace;font-size:12px;padding:40px 0">Click <strong>Scrape Events</strong> to load live events</div>
+      </div>
     </div>
   </main>
 </div>
@@ -723,12 +752,58 @@ function renderPeople() {
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
+// ── Events ───────────────────────────────────────────────────────────────────
+let allEvents = [];
+
+async function fetchEvents() {
+  const btn = document.getElementById('events-btn');
+  btn.disabled = true;
+  document.getElementById('events-icon').innerHTML = '<span class="spinner"></span>';
+  document.getElementById('events-grid').innerHTML = '<div style="color:var(--muted);font-family:DM Mono,monospace;font-size:12px;padding:40px 0">Scraping Eventbrite, Tech in Asia, e27, NUS…</div>';
+  try {
+    const r = await fetch(API + '/events');
+    const data = await r.json();
+    allEvents = data.events || [];
+    renderEvents();
+  } catch(e) {
+    document.getElementById('events-grid').innerHTML = '<div style="color:var(--danger);font-family:DM Mono,monospace;font-size:12px;padding:40px 0">Failed — is backend running?</div>';
+  } finally {
+    btn.disabled = false;
+    document.getElementById('events-icon').textContent = '↻';
+  }
+}
+
+function renderEvents() {
+  const rel = document.getElementById('ev-relevance').value;
+  const src = document.getElementById('ev-source').value;
+  let evs = allEvents.filter(e =>
+    (!rel || e.relevance === rel) &&
+    (!src || e.source === src)
+  );
+  const grid = document.getElementById('events-grid');
+  if (!evs.length) { grid.innerHTML = '<div style="color:var(--muted);font-family:DM Mono,monospace;font-size:12px;padding:40px 0">No events found</div>'; return; }
+  grid.innerHTML = evs.map(e => `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:16px;cursor:pointer" onclick="window.open('${e.url}','_blank')">
+      <div style="flex:1">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+          <span style="font-size:12px">${e.relevance}</span>
+          <span style="font-size:10px;padding:2px 7px;border-radius:3px;background:var(--surface2);color:var(--muted);font-family:DM Mono,monospace">${e.source}</span>
+        </div>
+        <div style="font-size:14px;font-weight:600;margin-bottom:3px">${e.title}</div>
+        <div style="font-size:11px;color:var(--muted)">${e.organizer ? e.organizer + ' · ' : ''}${e.date || 'Date TBC'}</div>
+      </div>
+      <div style="font-size:12px;color:var(--accent2);font-family:DM Mono,monospace;flex-shrink:0">open ↗</div>
+    </div>
+  `).join('');
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
 function switchTab(name) {
-  ['search','saved','tracker','vcs','people'].forEach(t => {
+  ['search','saved','tracker','vcs','people','events'].forEach(t => {
     document.getElementById('page-'+t).style.display = t===name?'block':'none';
   });
   document.querySelectorAll('.nav-item').forEach((el,i) => {
-    el.classList.toggle('active', ['search','saved','tracker','vcs','people'][i]===name);
+    el.classList.toggle('active', ['search','saved','tracker','vcs','people','events'][i]===name);
   });
   if (name==='saved') renderSaved();
   if (name==='tracker') renderKanban();
