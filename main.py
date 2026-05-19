@@ -232,3 +232,66 @@ async def get_jobs(keyword: str = "", type_filter: str = "", location: str = "")
 @app.get("/health")
 def health():
     return {"status": "healthy", "time": datetime.utcnow().isoformat()}
+
+
+# ─── VC DATABASE ──────────────────────────────────────────────────────────────
+
+SG_VCS_BASE = [
+    {"name":"Sequoia Capital SEA","website":"https://www.sequoiacap.com","stage":["Series A","Series B","Growth"],"sectors":["Tech","Fintech","Consumer"],"fund_size":"$850M+","hq":"Singapore","hiring_interns":True},
+    {"name":"Vertex Ventures SEA","website":"https://www.vertexventures.com","stage":["Seed","Series A","Series B"],"sectors":["Fintech","SaaS","Healthtech"],"fund_size":"$305M","hq":"Singapore","hiring_interns":True},
+    {"name":"East Ventures","website":"https://east.vc","stage":["Seed","Series A"],"sectors":["E-commerce","Fintech","SaaS"],"fund_size":"$550M+","hq":"Singapore","hiring_interns":True},
+    {"name":"Golden Gate Ventures","website":"https://goldengate.vc","stage":["Seed","Series A"],"sectors":["Marketplace","Fintech","Consumer"],"fund_size":"$100M","hq":"Singapore","hiring_interns":False},
+    {"name":"Insignia Ventures Partners","website":"https://insignia.vc","stage":["Seed","Series A"],"sectors":["Fintech","SaaS","Healthtech"],"fund_size":"$516M","hq":"Singapore","hiring_interns":True},
+    {"name":"Monk's Hill Ventures","website":"https://www.monkshill.com","stage":["Series A","Series B"],"sectors":["Deep Tech","SaaS","Fintech"],"fund_size":"$200M","hq":"Singapore","hiring_interns":True},
+    {"name":"Jungle Ventures","website":"https://jungle.vc","stage":["Series A","Series B","Growth"],"sectors":["Consumer","Fintech","B2B SaaS"],"fund_size":"$600M+","hq":"Singapore","hiring_interns":True},
+    {"name":"Wavemaker Partners","website":"https://wavemaker.vc","stage":["Seed","Series A"],"sectors":["B2B","Deep Tech","Sustainability"],"fund_size":"$165M","hq":"Singapore","hiring_interns":True},
+    {"name":"500 Global SEA","website":"https://500.co","stage":["Pre-Seed","Seed"],"sectors":["Broad","Fintech","Consumer"],"fund_size":"$1.8B (global)","hq":"Singapore","hiring_interns":False},
+    {"name":"Openspace Ventures","website":"https://openspace.vc","stage":["Series A","Series B"],"sectors":["Fintech","Healthtech","EdTech"],"fund_size":"$200M","hq":"Singapore","hiring_interns":True},
+    {"name":"Qualgro","website":"https://qualgro.com","stage":["Series A","Series B"],"sectors":["B2B SaaS","Data","AI"],"fund_size":"$120M","hq":"Singapore","hiring_interns":False},
+    {"name":"Vickers Venture Partners","website":"https://vickersventure.com","stage":["Series A","Series B","Growth"],"sectors":["Deep Tech","Biotech","AI"],"fund_size":"$1B+","hq":"Singapore","hiring_interns":False},
+    {"name":"Temasek Venture","website":"https://www.temasek.com.sg","stage":["Growth","Late"],"sectors":["Broad","Sustainability","Tech"],"fund_size":"$300B+ AUM","hq":"Singapore","hiring_interns":True},
+    {"name":"EDBI","website":"https://www.edbi.com","stage":["Series A","Growth"],"sectors":["Tech","Biotech","Medtech"],"fund_size":"Govt-backed","hq":"Singapore","hiring_interns":True},
+    {"name":"Antler","website":"https://www.antler.co","stage":["Pre-Seed","Seed"],"sectors":["Broad","Deep Tech","Fintech"],"fund_size":"$1B+","hq":"Singapore","hiring_interns":True},
+    {"name":"Saison Capital","website":"https://www.saisoncapital.com","stage":["Pre-Seed","Seed"],"sectors":["Fintech","B2B","Emerging Markets"],"fund_size":"$100M+","hq":"Singapore","hiring_interns":True},
+    {"name":"gumi Cryptos Capital","website":"https://gcc.fund","stage":["Seed","Series A"],"sectors":["Web3","DeFi","Gaming"],"fund_size":"$110M","hq":"Singapore","hiring_interns":True},
+    {"name":"Pavilion Capital","website":"https://www.pavilioncapital.com.sg","stage":["Growth","Buyout"],"sectors":["Broad","Consumer","Tech"],"fund_size":"$1B+","hq":"Singapore","hiring_interns":False},
+]
+
+PEOPLE_DATA = [
+    {"name":"Yinglan Tan","firm":"Insignia Ventures Partners","role":"Founding Managing Partner","linkedin":"https://www.linkedin.com/in/yinglantan/","background":"Ex-Sequoia, NUS alumnus","speaker_fit":5,"coffee_chat_fit":3,"tags":["Speaker","NUS Connection","VC Thought Leader"],"note":"Very active on LinkedIn, NUS alumnus — best cold outreach angle"},
+    {"name":"Vinnie Lauria","firm":"Golden Gate Ventures","role":"Managing Partner","linkedin":"https://www.linkedin.com/in/vinnielauria/","background":"Serial entrepreneur, SEA VC pioneer","speaker_fit":5,"coffee_chat_fit":4,"tags":["Speaker","SEA Pioneer","Approachable"],"note":"Frequently speaks at NUS/NTU events"},
+    {"name":"Carmen Yuen","firm":"Vertex Ventures SEA","role":"General Partner","linkedin":"https://www.linkedin.com/in/carmenyuen/","background":"Ex-investment banking, early-stage specialist","speaker_fit":4,"coffee_chat_fit":4,"tags":["Speaker","Coffee Chat","Female Leader","IBD Background"],"note":"Great for students transitioning from banking to VC"},
+    {"name":"Kuo-Yi Lim","firm":"Monk's Hill Ventures","role":"Co-Founder & Managing Partner","linkedin":"https://www.linkedin.com/in/kuoyilim/","background":"Ex-McKinsey, Stanford MBA","speaker_fit":4,"coffee_chat_fit":3,"tags":["Speaker","Deep Tech Focus"],"note":"Strong B2B SaaS perspective"},
+    {"name":"Hian Goh","firm":"Openspace Ventures","role":"Founding Partner","linkedin":"https://www.linkedin.com/in/hiangoh/","background":"Ex-BCG, SEA VC pioneer","speaker_fit":4,"coffee_chat_fit":4,"tags":["Speaker","Coffee Chat","SEA Expert"],"note":"Approachable, known for candid advice to students"},
+    {"name":"Paul Santos","firm":"Wavemaker Partners","role":"Managing Partner","linkedin":"https://www.linkedin.com/in/paulsantosph/","background":"Ex-founder, B2B/deep tech focus","speaker_fit":4,"coffee_chat_fit":4,"tags":["Coffee Chat","Deep Tech","Approachable"],"note":"Very open to NUS student outreach"},
+    {"name":"Willson Cuaca","firm":"East Ventures","role":"Co-Founder & Managing Partner","linkedin":"https://www.linkedin.com/in/willsoncuaca/","background":"Pioneered Indonesia/SEA VC ecosystem","speaker_fit":5,"coffee_chat_fit":2,"tags":["Speaker","SEA Pioneer"],"note":"Best for panel discussions"},
+    {"name":"Jeffrey Paine","firm":"Golden Gate Ventures","role":"Founding Partner","linkedin":"https://www.linkedin.com/in/jeffreypaine/","background":"One of SEA earliest VC investors","speaker_fit":5,"coffee_chat_fit":3,"tags":["Speaker","SEA Pioneer","Ecosystem Builder"],"note":"Great historical perspective on SEA VC"},
+    {"name":"Jayesh Parekh","firm":"Jungle Ventures","role":"Co-Founder","linkedin":"https://www.linkedin.com/in/jayeshparekh/","background":"Serial entrepreneur, investor","speaker_fit":4,"coffee_chat_fit":3,"tags":["Speaker","Entrepreneur Background"],"note":"Great for founder-investor dynamic talks"},
+    {"name":"Dmitry Levit","firm":"Cento Ventures","role":"General Partner","linkedin":"https://www.linkedin.com/in/dmitrylevit/","background":"Data-driven VC, publishes SEA VC reports","speaker_fit":4,"coffee_chat_fit":4,"tags":["Coffee Chat","Data/Research","Approachable"],"note":"Publishes free SEA VC data — great for research collab"},
+]
+
+
+@app.get("/vcs")
+async def get_vcs(stage: str = "", sector: str = "", hiring: str = ""):
+    vcs = [v.copy() for v in SG_VCS_BASE]
+    if stage:
+        vcs = [v for v in vcs if any(stage.lower() in s.lower() for s in v["stage"])]
+    if sector:
+        vcs = [v for v in vcs if any(sector.lower() in s.lower() for s in v["sectors"])]
+    if hiring == "true":
+        vcs = [v for v in vcs if v["hiring_interns"]]
+    for i, v in enumerate(vcs):
+        v["id"] = i + 1
+    return {"count": len(vcs), "vcs": vcs, "scraped_at": datetime.utcnow().isoformat() + "Z"}
+
+
+@app.get("/people")
+async def get_people(tag: str = "", speaker: str = "", coffee: str = ""):
+    people = PEOPLE_DATA.copy()
+    if tag:
+        people = [p for p in people if any(tag.lower() in t.lower() for t in p["tags"])]
+    if speaker == "true":
+        people = [p for p in people if p["speaker_fit"] >= 4]
+    if coffee == "true":
+        people = [p for p in people if p["coffee_chat_fit"] >= 4]
+    return {"count": len(people), "people": people}
