@@ -308,6 +308,12 @@ td { padding: 13px 14px; vertical-align: middle; }
     <div class="nav-item" onclick="switchTab('tracker')">
       <span class="nav-icon">◫</span> Tracker
     </div>
+    <div class="nav-item" onclick="switchTab('vcs')">
+      <span class="nav-icon">◈</span> VC Database
+    </div>
+    <div class="nav-item" onclick="switchTab('people')">
+      <span class="nav-icon">◉</span> Key People
+    </div>
     <div class="sidebar-footer">
       <p id="last-updated">–</p>
     </div>
@@ -397,6 +403,63 @@ td { padding: 13px 14px; vertical-align: middle; }
       </div>
       <div class="kanban" id="kanban-board"></div>
     </div>
+    <div id="page-vcs" style="display:none;">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Singapore VC Database</div>
+          <div class="page-sub">Filter by stage · sector · hiring status</div>
+        </div>
+        <button class="btn-scrape" onclick="fetchVCs()" style="height:38px">↻ Refresh</button>
+      </div>
+      <div class="controls" style="margin-bottom:20px">
+        <select id="vc-stage" onchange="renderVCs()">
+          <option value="">All Stages</option>
+          <option value="Pre-Seed">Pre-Seed</option>
+          <option value="Seed">Seed</option>
+          <option value="Series A">Series A</option>
+          <option value="Series B">Series B</option>
+          <option value="Growth">Growth</option>
+        </select>
+        <select id="vc-sector" onchange="renderVCs()">
+          <option value="">All Sectors</option>
+          <option value="Fintech">Fintech</option>
+          <option value="SaaS">SaaS</option>
+          <option value="Deep Tech">Deep Tech</option>
+          <option value="Consumer">Consumer</option>
+          <option value="Healthtech">Healthtech</option>
+          <option value="Web3">Web3</option>
+        </select>
+        <select id="vc-hiring" onchange="renderVCs()">
+          <option value="">All Firms</option>
+          <option value="true">Hiring Interns ✓</option>
+        </select>
+      </div>
+      <div id="vc-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;"></div>
+    </div>
+
+    <div id="page-people" style="display:none;">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Key People</div>
+          <div class="page-sub">Speakers · Coffee Chat · Senior VCs in Singapore</div>
+        </div>
+      </div>
+      <div class="controls" style="margin-bottom:20px">
+        <select id="p-filter" onchange="renderPeople()">
+          <option value="">All People</option>
+          <option value="speaker">Best Speakers ⭐⭐⭐⭐+</option>
+          <option value="coffee">Best Coffee Chat ⭐⭐⭐⭐+</option>
+        </select>
+        <select id="p-tag" onchange="renderPeople()">
+          <option value="">All Tags</option>
+          <option value="NUS Connection">NUS Connection</option>
+          <option value="Approachable">Approachable</option>
+          <option value="SEA Pioneer">SEA Pioneer</option>
+          <option value="IBD Background">IBD Background</option>
+        </select>
+      </div>
+      <div id="people-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;"></div>
+    </div>
   </main>
 </div>
 
@@ -407,7 +470,7 @@ td { padding: 13px 14px; vertical-align: middle; }
 // Change this to your deployed backend URL when you deploy!
 const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? 'http://localhost:8000'
-  : 'https://intern-production-117d.up.railway.app'; 
+  : 'https://intern-production-117d.up.railway.app';   // <-- update after deploy
 
 // ── State ────────────────────────────────────────────────────────────────────
 let allJobs = [];
@@ -569,16 +632,108 @@ function addToKanban(stage) {
   renderKanban();
 }
 
+// ── State VC/People ──────────────────────────────────────────────────────────
+let allVCs = [];
+let allPeople = [];
+
+// ── Fetch VCs ─────────────────────────────────────────────────────────────────
+async function fetchVCs() {
+  document.getElementById('vc-grid').innerHTML = '<div style="color:var(--muted);font-family:DM Mono,monospace;font-size:12px;padding:40px">Loading VC data…</div>';
+  try {
+    const r = await fetch(API + '/vcs');
+    const data = await r.json();
+    allVCs = data.vcs || [];
+    renderVCs();
+  } catch(e) {
+    document.getElementById('vc-grid').innerHTML = '<div style="color:var(--danger);font-family:DM Mono,monospace;font-size:12px;padding:40px">Failed to load. Is backend running?</div>';
+  }
+}
+
+function renderVCs() {
+  const stage = document.getElementById('vc-stage').value;
+  const sector = document.getElementById('vc-sector').value;
+  const hiring = document.getElementById('vc-hiring').value;
+  let vcs = allVCs.filter(v =>
+    (!stage || v.stage.some(s => s.includes(stage))) &&
+    (!sector || v.sectors.some(s => s.includes(sector))) &&
+    (!hiring || v.hiring_interns)
+  );
+  const grid = document.getElementById('vc-grid');
+  if (!vcs.length) { grid.innerHTML = '<div style="color:var(--muted);font-family:DM Mono,monospace;font-size:12px;padding:40px">No results</div>'; return; }
+  grid.innerHTML = vcs.map(v => `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px 18px;cursor:pointer;" onclick="window.open('${v.website}','_blank')">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+        <div style="font-size:14px;font-weight:700">${v.name}</div>
+        ${v.hiring_interns ? '<span style="font-size:10px;padding:2px 8px;border-radius:3px;background:rgba(74,222,128,0.12);color:var(--accent);font-family:DM Mono,monospace;font-weight:700">HIRING</span>' : ''}
+      </div>
+      <div style="font-size:11px;color:var(--accent3);font-family:DM Mono,monospace;margin-bottom:8px">${v.fund_size}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+        ${v.stage.map(s=>`<span style="font-size:10px;padding:2px 7px;border-radius:3px;background:rgba(96,165,250,0.1);color:var(--accent2);font-family:DM Mono,monospace">${s}</span>`).join('')}
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${v.sectors.map(s=>`<span style="font-size:10px;padding:2px 7px;border-radius:3px;background:var(--surface2);color:var(--muted);font-family:DM Mono,monospace">${s}</span>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Fetch People ──────────────────────────────────────────────────────────────
+async function fetchPeople() {
+  document.getElementById('people-grid').innerHTML = '<div style="color:var(--muted);font-family:DM Mono,monospace;font-size:12px;padding:40px">Loading…</div>';
+  try {
+    const r = await fetch(API + '/people');
+    const data = await r.json();
+    allPeople = data.people || [];
+    renderPeople();
+  } catch(e) {
+    document.getElementById('people-grid').innerHTML = '<div style="color:var(--danger);font-family:DM Mono,monospace;font-size:12px;padding:40px">Failed to load.</div>';
+  }
+}
+
+function stars(n) { return '⭐'.repeat(n); }
+
+function renderPeople() {
+  const pf = document.getElementById('p-filter').value;
+  const pt = document.getElementById('p-tag').value;
+  let people = allPeople.filter(p =>
+    (!pf || (pf==='speaker' ? p.speaker_fit>=4 : p.coffee_chat_fit>=4)) &&
+    (!pt || p.tags.some(t=>t.includes(pt)))
+  );
+  const grid = document.getElementById('people-grid');
+  if (!people.length) { grid.innerHTML = '<div style="color:var(--muted);font-family:DM Mono,monospace;font-size:12px;padding:40px">No results</div>'; return; }
+  grid.innerHTML = people.map(p => `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px 18px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+        <div style="font-size:15px;font-weight:700">${p.name}</div>
+        <a href="${p.linkedin}" target="_blank" style="font-size:11px;color:var(--accent2);font-family:DM Mono,monospace;text-decoration:none;opacity:0.8">LinkedIn ↗</a>
+      </div>
+      <div style="font-size:12px;color:var(--accent);margin-bottom:2px">${p.role}</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px">${p.firm}</div>
+      <div style="font-size:11px;color:var(--text);margin-bottom:10px;line-height:1.5">${p.background}</div>
+      <div style="display:flex;gap:8px;margin-bottom:10px;font-size:11px;font-family:DM Mono,monospace">
+        <span style="color:var(--muted)">Speaker:</span><span>${stars(p.speaker_fit)}</span>
+        <span style="color:var(--muted);margin-left:8px">Coffee:</span><span>${stars(p.coffee_chat_fit)}</span>
+      </div>
+      <div style="font-size:11px;color:var(--accent3);font-style:italic;margin-bottom:8px">${p.note}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${p.tags.map(t=>`<span style="font-size:10px;padding:2px 7px;border-radius:3px;background:var(--surface2);color:var(--muted);font-family:DM Mono,monospace">${t}</span>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 function switchTab(name) {
-  ['search','saved','tracker'].forEach(t => {
+  ['search','saved','tracker','vcs','people'].forEach(t => {
     document.getElementById('page-'+t).style.display = t===name?'block':'none';
   });
   document.querySelectorAll('.nav-item').forEach((el,i) => {
-    el.classList.toggle('active', ['search','saved','tracker'][i]===name);
+    el.classList.toggle('active', ['search','saved','tracker','vcs','people'][i]===name);
   });
   if (name==='saved') renderSaved();
   if (name==='tracker') renderKanban();
+  if (name==='vcs' && !allVCs.length) fetchVCs();
+  if (name==='people' && !allPeople.length) fetchPeople();
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
