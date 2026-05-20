@@ -298,42 +298,18 @@ async def get_people(tag: str = "", speaker: str = "", coffee: str = ""):
 
 
 
-# ─── EVENTS & SPEAKERS (Google Custom Search) ────────────────────────────────
+# ─── EVENTS & SPEAKERS (SerpApi / DuckDuckGo fallback) ───────────────────────
 
 import os
-
-GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "")
-GOOGLE_CSE_ID  = os.environ.get("GOOGLE_CSE_ID", "")
+import re
 
 EVENT_QUERIES = [
-    "Singapore venture capital event speaker 2025 2026",
-    "Singapore startup investor conference 2026",
-    "Singapore VC PE networking event 2026",
-    "NUS fintech investment talk speaker Singapore",
-    "Singapore angel investor founder event 2026",
+    "Singapore venture capital networking event 2026",
+    "Singapore startup investor conference 2026 speaker",
+    "NUS fintech VC talk speaker Singapore 2026",
+    "Singapore PE VC summit 2026",
+    "SEA venture capital founder event Singapore",
 ]
-
-PEOPLE_QUERIES = [
-    "Singapore venture capital managing partner speaker",
-    "Singapore VC investor keynote 2025 2026",
-    "SEA venture capital general partner interview",
-    "Singapore startup ecosystem investor thought leader",
-]
-
-
-async def google_search(client: httpx.AsyncClient, query: str, num: int = 5) -> list:
-    if not GOOGLE_API_KEY or not GOOGLE_CSE_ID:
-        return []
-    try:
-        r = await client.get(
-            "https://www.googleapis.com/customsearch/v1",
-            params={"key": GOOGLE_API_KEY, "cx": GOOGLE_CSE_ID, "q": query, "num": num},
-            timeout=10,
-        )
-        return r.json().get("items", [])
-    except Exception as e:
-        print(f"Google search error: {e}")
-        return []
 
 
 def score_relevance(text: str) -> str:
@@ -348,80 +324,159 @@ def score_relevance(text: str) -> str:
 
 
 def extract_names(text: str) -> list:
-    import re
     names = []
     pats = [
-        r"(?:speaker|keynote|panelist|hosted by|by|featuring)\s*:?\s*([A-Z][a-z]+ [A-Z][a-z]+)",
-        r"([A-Z][a-z]+ [A-Z][a-z]+),\s*(?:Partner|Managing|General|Founder|CEO|Director|Head)",
+        r"(?:speaker|keynote|panelist|hosted by|featuring|by)\s*:?\s*([A-Z][a-z]+ [A-Z][a-z]+)",
+        r"([A-Z][a-z]+ [A-Z][a-z]+),\s*(?:Partner|Managing|General|Founder|CEO|Director|Head|VP)",
     ]
     for pat in pats:
         names.extend(re.findall(pat, text))
     return list(set(names))[:3]
 
 
+async def search_duckduckgo(client: httpx.AsyncClient, query: str) -> list:
+    """Scrape DuckDuckGo HTML results - no API key needed"""
+    results = []
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+        }
+        encoded = query.replace(" ", "+")
+        url = f"https://html.duckduckgo.com/html/?q={encoded}"
+        r = await client.get(url, headers=headers, timeout=12)
+        soup = BeautifulSoup(r.text, "html.parser")
+
+        for result in soup.select(".result__body, .web-result, .result")[:6]:
+            title_el = result.select_one(".result__title a, .result__a, a.result__url")
+            snippet_el = result.select_one(".result__snippet, .result__extract")
+            if not title_el:
+                continue
+            title = title_el.get_text(strip=True)
+            snippet = snippet_el.get_text(strip=True) if snippet_el else ""
+            href = title_el.get("href", "")
+            # DuckDuckGo wraps links, extract real URL
+            if "uddg=" in href:
+                import urllib.parse
+                parsed = urllib.parse.parse_qs(urllib.parse.urlparse(href).query)
+                href = parsed.get("uddg", [href])[0]
+            if title and len(title) > 5:
+                results.append({"title": title, "snippet": snippet, "url": href})
+    except Exception as e:
+        print(f"DuckDuckGo error for '{query}': {e}")
+    return results
+
+
+async def search_bing(client: httpx.AsyncClient, query: str) -> list:
+    """Scrape Bing search results as fallback"""
+    results = []
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept-Language": "en-US,en;q=0.9",
+        }
+        encoded = query.replace(" ", "+")
+        url = f"https://www.bing.com/search?q={encoded}&count=8"
+        r = await client.get(url, headers=headers, timeout=12)
+        soup = BeautifulSoup(r.text, "html.parser")
+        for li in soup.select("li.b_algo")[:6]:
+            title_el = li.select_one("h2 a")
+            snippet_el = li.select_one(".b_caption p, .b_snippet")
+            if not title_el:
+                continue
+            results.append({
+                "title": title_el.get_text(strip=True),
+                "snippet": snippet_el.get_text(strip=True) if snippet_el else "",
+                "url": title_el.get("href", ""),
+            })
+    except Exception as e:
+        print(f"Bing error for '{query}': {e}")
+    return results
+
+
 @app.get("/events")
 async def get_events():
     async with httpx.AsyncClient(follow_redirects=True) as client:
-        all_items = []
-        results = await asyncio.gather(
-            *[google_search(client, q, 5) for q in EVENT_QUERIES],
-            return_exceptions=True
-        )
-        for r in results:
-            if isinstance(r, list):
-                all_items.extend(r)
+        # Try DuckDuckGo first, then Bing as fallback
+        ddg_tasks = [search_duckduckgo(client, q) for q in EVENT_QUERIES]
+        ddg_results = await asyncio.gather(*ddg_tasks, return_exceptions=True)
+
+        all_raw = []
+        for r in ddg_results:
+            if isinstance(r, list) and r:
+                all_raw.extend(r)
+
+        # If DuckDuckGo got nothing, try Bing
+        if len(all_raw) < 3:
+            bing_tasks = [search_bing(client, q) for q in EVENT_QUERIES[:3]]
+            bing_results = await asyncio.gather(*bing_tasks, return_exceptions=True)
+            for r in bing_results:
+                if isinstance(r, list):
+                    all_raw.extend(r)
 
     seen, events = set(), []
-    for item in all_items:
-        url = item.get("link", "")
+    for item in all_raw:
+        url = item.get("url", "")
         title = item.get("title", "")
-        if url[:60] in seen or not title:
+        key = (title[:40].lower())
+        if key in seen or not title or len(title) < 8:
             continue
-        seen.add(url[:60])
+        seen.add(key)
         snippet = item.get("snippet", "")
         rel = score_relevance(title + " " + snippet)
+        # Extract domain as source
+        try:
+            from urllib.parse import urlparse
+            source = urlparse(url).netloc.replace("www.", "")
+        except:
+            source = ""
         events.append({
             "id": len(events) + 1,
             "title": title,
             "url": url,
             "snippet": snippet[:200],
-            "source": item.get("displayLink", ""),
+            "source": source,
             "speakers": extract_names(title + " " + snippet),
             "relevance": rel,
-            "relevance_icon": {"High": "🔥", "Medium": "⭐", "General": "·"}[rel],
         })
 
     events.sort(key=lambda x: {"High": 0, "Medium": 1, "General": 2}.get(x["relevance"], 3))
-    return {"count": len(events), "events": events, "scraped_at": datetime.utcnow().isoformat() + "Z"}
+    return {
+        "count": len(events),
+        "events": events,
+        "scraped_at": datetime.utcnow().isoformat() + "Z",
+    }
 
 
 @app.get("/discover-people")
 async def discover_people():
+    queries = [
+        "Singapore venture capital managing partner speaker 2026",
+        "Singapore VC investor keynote SEA ecosystem",
+        "SEA venture capital general partner interview podcast",
+    ]
     async with httpx.AsyncClient(follow_redirects=True) as client:
-        all_items = []
-        results = await asyncio.gather(
-            *[google_search(client, q, 8) for q in PEOPLE_QUERIES],
-            return_exceptions=True
-        )
-        for r in results:
-            if isinstance(r, list):
-                all_items.extend(r)
+        tasks = [search_duckduckgo(client, q) for q in queries]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
 
     seen, discovered = set(), []
-    for item in all_items:
-        url = item.get("link", "")
-        title = item.get("title", "")
-        if url[:60] in seen or not title:
+    for items in results:
+        if not isinstance(items, list):
             continue
-        seen.add(url[:60])
-        snippet = item.get("snippet", "")
-        names = extract_names(title + " " + snippet)
-        discovered.append({
-            "title": title,
-            "url": url,
-            "snippet": snippet[:200],
-            "source": item.get("displayLink", ""),
-            "possible_people": names,
-        })
+        for item in items:
+            url = item.get("url", "")
+            title = item.get("title", "")
+            key = title[:40].lower()
+            if key in seen or not title:
+                continue
+            seen.add(key)
+            snippet = item.get("snippet", "")
+            names = extract_names(title + " " + snippet)
+            discovered.append({
+                "title": title, "url": url,
+                "snippet": snippet[:200],
+                "possible_people": names,
+            })
 
     return {"count": len(discovered), "results": discovered, "scraped_at": datetime.utcnow().isoformat() + "Z"}
