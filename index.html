@@ -444,14 +444,18 @@ td { padding: 13px 14px; vertical-align: middle; }
       <div class="page-header">
         <div>
           <div class="page-title">Key People</div>
-          <div class="page-sub">Speakers · Coffee Chat · Senior VCs in Singapore</div>
+          <div class="page-sub">AI-analysed — background · speaker fit · outreach templates</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn-scrape" onclick="openAddPerson()" style="height:38px;background:var(--surface);color:var(--text);border:1px solid var(--border)">+ Add Person</button>
+          <button class="btn-scrape" onclick="fetchPeople()" style="height:38px">↻ Refresh</button>
         </div>
       </div>
       <div class="controls" style="margin-bottom:20px">
         <select id="p-filter" onchange="renderPeople()">
           <option value="">All People</option>
-          <option value="speaker">Best Speakers ⭐⭐⭐⭐+</option>
-          <option value="coffee">Best Coffee Chat ⭐⭐⭐⭐+</option>
+          <option value="speaker">Best Speakers (4+)</option>
+          <option value="coffee">Best Coffee Chat (4+)</option>
         </select>
         <select id="p-tag" onchange="renderPeople()">
           <option value="">All Tags</option>
@@ -461,32 +465,54 @@ td { padding: 13px 14px; vertical-align: middle; }
           <option value="IBD Background">IBD Background</option>
         </select>
       </div>
-      <div id="people-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;"></div>
+      <div id="people-grid" style="display:flex;flex-direction:column;gap:12px;"></div>
+    </div>
+
+    <!-- Add Person Modal -->
+    <div id="add-person-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;align-items:center;justify-content:center;">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px;width:460px;max-width:90vw;">
+        <div style="font-size:16px;font-weight:700;margin-bottom:20px">Add Person for AI Analysis</div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <input id="ap-name" placeholder="Full name (e.g. Yinglan Tan)" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:var(--text);font-size:13px;font-family:Syne,sans-serif;outline:none;" />
+          <input id="ap-firm" placeholder="Firm (e.g. Insignia Ventures)" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:var(--text);font-size:13px;font-family:Syne,sans-serif;outline:none;" />
+          <input id="ap-role" placeholder="Role (e.g. Managing Partner)" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:var(--text);font-size:13px;font-family:Syne,sans-serif;outline:none;" />
+          <input id="ap-context" placeholder="Context — where did you find them? (optional)" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:var(--text);font-size:13px;font-family:Syne,sans-serif;outline:none;" />
+          <div id="ap-status" style="font-size:12px;color:var(--muted);font-family:DM Mono,monospace;min-height:16px;"></div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+            <button onclick="closeAddPerson()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:8px 16px;color:var(--muted);font-size:13px;cursor:pointer">Cancel</button>
+            <button onclick="analyseAndAdd()" id="ap-btn" style="background:var(--accent);border:none;border-radius:6px;padding:8px 16px;color:#000;font-size:13px;font-weight:700;cursor:pointer">Analyse with AI →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Person Detail Modal -->
+    <div id="person-detail-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:100;align-items:center;justify-content:center;overflow-y:auto;padding:20px;">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px;width:600px;max-width:95vw;position:relative;">
+        <button onclick="closePersonDetail()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer">×</button>
+        <div id="person-detail-content"></div>
+      </div>
     </div>
     <div id="page-events" style="display:none;">
       <div class="page-header">
         <div>
           <div class="page-title">Events & Speakers</div>
-          <div class="page-sub">Eventbrite · Tech in Asia · e27 · NUS — live scraped</div>
+          <div class="page-sub">Google-powered · discover speakers → add to Key People</div>
         </div>
-        <button class="btn-scrape" onclick="fetchEvents()" id="events-btn" style="height:38px"><span id="events-icon">↻</span> Scrape Events</button>
+        <button class="btn-scrape" onclick="fetchEvents()" id="events-btn" style="height:38px"><span id="events-icon">↻</span> Search Events</button>
       </div>
       <div class="controls" style="margin-bottom:20px">
         <select id="ev-relevance" onchange="renderEvents()">
-          <option value="">All Events</option>
-          <option value="🔥 High">🔥 High Relevance (VC/PE/Startup)</option>
-          <option value="⭐ Medium">⭐ Medium Relevance</option>
+          <option value="">All Relevance</option>
+          <option value="High">🔥 High (VC/PE/Startup)</option>
+          <option value="Medium">⭐ Medium</option>
         </select>
         <select id="ev-source" onchange="renderEvents()">
           <option value="">All Sources</option>
-          <option value="Eventbrite">Eventbrite</option>
-          <option value="Tech in Asia">Tech in Asia</option>
-          <option value="e27">e27</option>
-          <option value="NUS">NUS</option>
         </select>
       </div>
       <div id="events-grid" style="display:flex;flex-direction:column;gap:10px;">
-        <div style="color:var(--muted);font-family:DM Mono,monospace;font-size:12px;padding:40px 0">Click <strong>Scrape Events</strong> to load live events</div>
+        <div style="color:var(--muted);font-family:DM Mono,monospace;font-size:12px;padding:40px 0">Click <strong>Search Events</strong> to find live Singapore VC events via Google</div>
       </div>
     </div>
   </main>
@@ -706,64 +732,254 @@ function renderVCs() {
   `).join('');
 }
 
-// ── Fetch People ──────────────────────────────────────────────────────────────
+// ── People (AI-powered) ───────────────────────────────────────────────────────
+let allPeople = JSON.parse(localStorage.getItem('people_db') || '[]');
+let allEvents = [];
+
+function savePeopleDB() {
+  localStorage.setItem('people_db', JSON.stringify(allPeople));
+}
+
 async function fetchPeople() {
-  document.getElementById('people-grid').innerHTML = '<div style="color:var(--muted);font-family:DM Mono,monospace;font-size:12px;padding:40px">Loading…</div>';
+  // Merge static backend list with local AI-analysed list
   try {
     const r = await fetch(API + '/people');
     const data = await r.json();
-    allPeople = data.people || [];
-    renderPeople();
-  } catch(e) {
-    document.getElementById('people-grid').innerHTML = '<div style="color:var(--danger);font-family:DM Mono,monospace;font-size:12px;padding:40px">Failed to load.</div>';
-  }
+    // Only add backend people not already in local DB
+    const localNames = new Set(allPeople.map(p => p.name.toLowerCase()));
+    for (const p of (data.people || [])) {
+      if (!localNames.has(p.name.toLowerCase())) {
+        allPeople.push({ ...p, source: 'static', ai_analysis: null });
+      }
+    }
+    savePeopleDB();
+  } catch(e) {}
+  renderPeople();
 }
-
-function stars(n) { return '⭐'.repeat(n); }
 
 function renderPeople() {
   const pf = document.getElementById('p-filter').value;
   const pt = document.getElementById('p-tag').value;
   let people = allPeople.filter(p =>
-    (!pf || (pf==='speaker' ? p.speaker_fit>=4 : p.coffee_chat_fit>=4)) &&
-    (!pt || p.tags.some(t=>t.includes(pt)))
+    (!pf || (pf==='speaker' ? (p.speaker_fit||0)>=4 : (p.coffee_chat_fit||0)>=4)) &&
+    (!pt || (p.tags||[]).some(t => t.includes(pt)))
   );
   const grid = document.getElementById('people-grid');
-  if (!people.length) { grid.innerHTML = '<div style="color:var(--muted);font-family:DM Mono,monospace;font-size:12px;padding:40px">No results</div>'; return; }
-  grid.innerHTML = people.map(p => `
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px 18px;">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
-        <div style="font-size:15px;font-weight:700">${p.name}</div>
-        <a href="${p.linkedin}" target="_blank" style="font-size:11px;color:var(--accent2);font-family:DM Mono,monospace;text-decoration:none;opacity:0.8">LinkedIn ↗</a>
+  if (!people.length) {
+    grid.innerHTML = `<div style="color:var(--muted);font-family:DM Mono,monospace;font-size:13px;padding:60px 0;text-align:center">
+      No people yet.<br><br>
+      <strong style="color:var(--text)">How to add:</strong><br>
+      1. Go to Events → search for VC events<br>
+      2. Click "+ Add to People" on any speaker<br>
+      3. Or click "+ Add Person" above
+    </div>`;
+    return;
+  }
+  grid.innerHTML = people.map((p, idx) => {
+    const hasAnalysis = p.ai_analysis;
+    const speakerScore = p.speaker_fit || 0;
+    const coffeeScore = p.coffee_chat_fit || 0;
+    return `
+    <div style="background:var(--surface);border:1px solid ${hasAnalysis ? 'rgba(74,222,128,0.3)' : 'var(--border)'};border-radius:10px;padding:18px 20px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+        <div>
+          <div style="font-size:16px;font-weight:700">${p.name}</div>
+          <div style="font-size:12px;color:var(--accent);margin-top:2px">${p.role||''}</div>
+          <div style="font-size:11px;color:var(--muted)">${p.firm||''}</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          ${hasAnalysis ? '<span style="font-size:10px;padding:2px 7px;border-radius:3px;background:rgba(74,222,128,0.12);color:var(--accent);font-family:DM Mono,monospace">AI ✓</span>' : ''}
+          <button onclick="viewPerson(${idx})" style="font-size:11px;padding:4px 10px;border-radius:4px;border:1px solid var(--border);background:none;color:var(--accent2);cursor:pointer;font-family:DM Mono,monospace">View →</button>
+          <button onclick="deletePerson(${idx})" style="font-size:11px;padding:4px 8px;border-radius:4px;border:1px solid var(--border);background:none;color:var(--muted);cursor:pointer">✕</button>
+        </div>
       </div>
-      <div style="font-size:12px;color:var(--accent);margin-bottom:2px">${p.role}</div>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:10px">${p.firm}</div>
-      <div style="font-size:11px;color:var(--text);margin-bottom:10px;line-height:1.5">${p.background}</div>
-      <div style="display:flex;gap:8px;margin-bottom:10px;font-size:11px;font-family:DM Mono,monospace">
-        <span style="color:var(--muted)">Speaker:</span><span>${stars(p.speaker_fit)}</span>
-        <span style="color:var(--muted);margin-left:8px">Coffee:</span><span>${stars(p.coffee_chat_fit)}</span>
+      <div style="display:flex;gap:16px;margin-top:10px;font-size:11px;font-family:DM Mono,monospace">
+        <span>Speaker <span style="color:${speakerScore>=4?'var(--accent)':'var(--muted)'}">${'★'.repeat(speakerScore)}${'☆'.repeat(5-speakerScore)}</span></span>
+        <span>Coffee Chat <span style="color:${coffeeScore>=4?'var(--accent3)':'var(--muted)'}">${'★'.repeat(coffeeScore)}${'☆'.repeat(5-coffeeScore)}</span></span>
       </div>
-      <div style="font-size:11px;color:var(--accent3);font-style:italic;margin-bottom:8px">${p.note}</div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        ${p.tags.map(t=>`<span style="font-size:10px;padding:2px 7px;border-radius:3px;background:var(--surface2);color:var(--muted);font-family:DM Mono,monospace">${t}</span>`).join('')}
-      </div>
-    </div>
-  `).join('');
+      ${p.source_event ? `<div style="font-size:10px;color:var(--muted);margin-top:8px;font-family:DM Mono,monospace">from event: ${p.source_event}</div>` : ''}
+      ${hasAnalysis && p.ai_analysis.key_angle ? `<div style="font-size:11px;color:var(--accent3);margin-top:8px;font-style:italic">"${p.ai_analysis.key_angle}"</div>` : ''}
+      ${!hasAnalysis ? `<button onclick="runAIAnalysis(${idx})" style="margin-top:10px;font-size:11px;padding:5px 12px;border-radius:4px;border:1px solid var(--accent);background:none;color:var(--accent);cursor:pointer;font-family:DM Mono,monospace">✦ Run AI Analysis</button>` : ''}
+    </div>`;
+  }).join('');
 }
 
-// ── Tabs ──────────────────────────────────────────────────────────────────────
-// ── Events ───────────────────────────────────────────────────────────────────
-let allEvents = [];
+function viewPerson(idx) {
+  const p = allPeople[idx];
+  const a = p.ai_analysis;
+  const modal = document.getElementById('person-detail-modal');
+  const content = document.getElementById('person-detail-content');
+  content.innerHTML = `
+    <div style="font-size:20px;font-weight:700;margin-bottom:4px">${p.name}</div>
+    <div style="font-size:13px;color:var(--accent);margin-bottom:2px">${p.role||''}</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:20px">${p.firm||''}</div>
+    ${a ? `
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div>
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-family:DM Mono,monospace;margin-bottom:6px">Background</div>
+          <div style="font-size:13px;line-height:1.7;color:var(--text)">${a.background||p.background||'–'}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div style="background:var(--surface2);border-radius:8px;padding:12px">
+            <div style="font-size:10px;color:var(--muted);font-family:DM Mono,monospace;margin-bottom:4px">SPEAKER FIT</div>
+            <div style="font-size:22px;font-weight:700;color:var(--accent)">${'★'.repeat(p.speaker_fit||0)}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px">${a.speaker_reason||''}</div>
+          </div>
+          <div style="background:var(--surface2);border-radius:8px;padding:12px">
+            <div style="font-size:10px;color:var(--muted);font-family:DM Mono,monospace;margin-bottom:4px">COFFEE CHAT FIT</div>
+            <div style="font-size:22px;font-weight:700;color:var(--accent3)">${'★'.repeat(p.coffee_chat_fit||0)}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px">${a.coffee_reason||''}</div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-family:DM Mono,monospace;margin-bottom:8px">Suggested Topics</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${(a.topics||[]).map(t=>`<span style="font-size:11px;padding:3px 9px;border-radius:4px;background:rgba(96,165,250,0.1);color:var(--accent2);font-family:DM Mono,monospace">${t}</span>`).join('')}
+          </div>
+        </div>
+        <div>
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-family:DM Mono,monospace;margin-bottom:8px">Events / Appearances</div>
+          <div style="font-size:12px;line-height:1.8;color:var(--text)">${(a.appearances||[]).map(ap=>`• ${ap}`).join('<br>')|| '–'}</div>
+        </div>
+        <div>
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-family:DM Mono,monospace;margin-bottom:8px">Cold Outreach Template</div>
+          <div style="background:var(--surface2);border-radius:8px;padding:14px;font-size:12px;line-height:1.8;color:var(--text);white-space:pre-wrap;font-family:DM Mono,monospace">${a.outreach_template||'–'}</div>
+          <button onclick="navigator.clipboard.writeText(${JSON.stringify(a.outreach_template||'').replace(/"/g,'&quot;')});showToast('Copied!')" style="margin-top:8px;font-size:11px;padding:5px 12px;border-radius:4px;border:1px solid var(--border);background:none;color:var(--muted);cursor:pointer;font-family:DM Mono,monospace">Copy</button>
+        </div>
+      </div>
+    ` : `
+      <div style="text-align:center;padding:40px 0;color:var(--muted);font-family:DM Mono,monospace;font-size:13px">
+        No AI analysis yet.<br><br>
+        <button onclick="closePersonDetail();runAIAnalysis(${idx})" style="margin-top:12px;font-size:12px;padding:8px 18px;border-radius:6px;border:1px solid var(--accent);background:none;color:var(--accent);cursor:pointer;font-family:DM Mono,monospace">✦ Run AI Analysis Now</button>
+      </div>
+    `}
+  `;
+  modal.style.display = 'flex';
+}
 
+function closePersonDetail() {
+  document.getElementById('person-detail-modal').style.display = 'none';
+}
+
+function deletePerson(idx) {
+  if (!confirm('Remove this person?')) return;
+  allPeople.splice(idx, 1);
+  savePeopleDB();
+  renderPeople();
+}
+
+// ── Add Person Modal ──────────────────────────────────────────────────────────
+function openAddPerson(prefill = {}) {
+  document.getElementById('ap-name').value = prefill.name || '';
+  document.getElementById('ap-firm').value = prefill.firm || '';
+  document.getElementById('ap-role').value = prefill.role || '';
+  document.getElementById('ap-context').value = prefill.context || '';
+  document.getElementById('ap-status').textContent = '';
+  document.getElementById('add-person-modal').style.display = 'flex';
+}
+function closeAddPerson() {
+  document.getElementById('add-person-modal').style.display = 'none';
+}
+
+async function analyseAndAdd() {
+  const name = document.getElementById('ap-name').value.trim();
+  const firm = document.getElementById('ap-firm').value.trim();
+  const role = document.getElementById('ap-role').value.trim();
+  const context = document.getElementById('ap-context').value.trim();
+  if (!name) { alert('Please enter a name'); return; }
+
+  const btn = document.getElementById('ap-btn');
+  const status = document.getElementById('ap-status');
+  btn.disabled = true;
+  btn.textContent = 'Analysing…';
+  status.textContent = 'Calling Claude AI…';
+
+  try {
+    const prompt = `You are a Singapore VC ecosystem expert helping an NUS Masters student plan networking and speaker invitations.
+
+Analyse this person and return ONLY valid JSON (no markdown, no explanation):
+Name: ${name}
+Firm: ${firm}
+Role: ${role}
+${context ? 'Context: ' + context : ''}
+
+Return this exact JSON structure:
+{
+  "background": "2-3 sentence summary of their career, focus areas, and influence in SEA VC ecosystem",
+  "speaker_fit": <integer 1-5, how good as a speaker for NUS student events>,
+  "speaker_reason": "one sentence why",
+  "coffee_chat_fit": <integer 1-5, how approachable for a cold outreach coffee chat>,
+  "coffee_reason": "one sentence why",
+  "key_angle": "the single most compelling reason to reach out to them",
+  "topics": ["topic1", "topic2", "topic3", "topic4"],
+  "appearances": ["brief description of known events/talks/podcasts they have appeared in"],
+  "outreach_template": "Hi [Name],\n\nI'm [Your Name], an NUS Masters student in [programme]. [personalised hook about their work or a specific talk/article]. [specific ask - speaker invitation or coffee chat]. [brief value prop - what's in it for them].\n\nBest,\n[Your Name]",
+  "tags": ["tag1", "tag2"]
+}`;
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await response.json();
+    const text = data.content?.[0]?.text || '';
+    const clean = text.replace(/```json|```/g, '').trim();
+    const analysis = JSON.parse(clean);
+
+    const person = {
+      name, firm, role,
+      source_event: context || null,
+      speaker_fit: analysis.speaker_fit,
+      coffee_chat_fit: analysis.coffee_chat_fit,
+      tags: analysis.tags || [],
+      ai_analysis: analysis,
+      added_at: new Date().toISOString(),
+    };
+
+    allPeople.unshift(person);
+    savePeopleDB();
+    closeAddPerson();
+    switchTab('people');
+    renderPeople();
+    showToast(`${name} added with AI analysis ✓`);
+  } catch(e) {
+    status.textContent = 'Error: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Analyse with AI →';
+  }
+}
+
+async function runAIAnalysis(idx) {
+  const p = allPeople[idx];
+  const grid = document.getElementById('people-grid');
+  showToast(`Running AI analysis for ${p.name}…`);
+  // Reuse analyseAndAdd logic by filling modal and submitting
+  openAddPerson({ name: p.name, firm: p.firm, role: p.role });
+  // Remove old entry first
+  allPeople.splice(idx, 1);
+  savePeopleDB();
+}
+
+// ── Events ───────────────────────────────────────────────────────────────────
 async function fetchEvents() {
   const btn = document.getElementById('events-btn');
   btn.disabled = true;
   document.getElementById('events-icon').innerHTML = '<span class="spinner"></span>';
-  document.getElementById('events-grid').innerHTML = '<div style="color:var(--muted);font-family:DM Mono,monospace;font-size:12px;padding:40px 0">Scraping Eventbrite, Tech in Asia, e27, NUS…</div>';
+  document.getElementById('events-grid').innerHTML = '<div style="color:var(--muted);font-family:DM Mono,monospace;font-size:12px;padding:40px 0">Searching Google for Singapore VC events…</div>';
   try {
     const r = await fetch(API + '/events');
     const data = await r.json();
     allEvents = data.events || [];
+    // Update source filter
+    const sources = [...new Set(allEvents.map(e => e.source))];
+    const sel = document.getElementById('ev-source');
+    sel.innerHTML = '<option value="">All Sources</option>' + sources.map(s=>`<option value="${s}">${s}</option>`).join('');
     renderEvents();
   } catch(e) {
     document.getElementById('events-grid').innerHTML = '<div style="color:var(--danger);font-family:DM Mono,monospace;font-size:12px;padding:40px 0">Failed — is backend running?</div>';
@@ -783,16 +999,26 @@ function renderEvents() {
   const grid = document.getElementById('events-grid');
   if (!evs.length) { grid.innerHTML = '<div style="color:var(--muted);font-family:DM Mono,monospace;font-size:12px;padding:40px 0">No events found</div>'; return; }
   grid.innerHTML = evs.map(e => `
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:16px;cursor:pointer" onclick="window.open('${e.url}','_blank')">
-      <div style="flex:1">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
-          <span style="font-size:12px">${e.relevance}</span>
-          <span style="font-size:10px;padding:2px 7px;border-radius:3px;background:var(--surface2);color:var(--muted);font-family:DM Mono,monospace">${e.source}</span>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px 18px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <span style="font-size:11px;padding:2px 7px;border-radius:3px;background:${e.relevance==='High'?'rgba(74,222,128,0.12)':e.relevance==='Medium'?'rgba(245,158,11,0.12)':'var(--surface2)'};color:${e.relevance==='High'?'var(--accent)':e.relevance==='Medium'?'var(--accent3)':'var(--muted)'};font-family:DM Mono,monospace">${e.relevance==='High'?'🔥 High':e.relevance==='Medium'?'⭐ Medium':'General'}</span>
+            <span style="font-size:10px;color:var(--muted);font-family:DM Mono,monospace">${e.source}</span>
+          </div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:4px;cursor:pointer" onclick="window.open('${e.url}','_blank')">${e.title} <span style="font-size:11px;color:var(--accent2)">↗</span></div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.6">${e.snippet}</div>
+          ${e.speakers && e.speakers.length ? `
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              <span style="font-size:10px;color:var(--muted);font-family:DM Mono,monospace">Possible speakers:</span>
+              ${e.speakers.map(sp=>`
+                <button onclick="openAddPerson({name:'${sp.replace(/'/g,"\'")}',context:'Spotted at: ${e.title.replace(/'/g,"\'")}'})" 
+                  style="font-size:11px;padding:2px 9px;border-radius:99px;border:1px solid var(--accent);background:none;color:var(--accent);cursor:pointer;font-family:DM Mono,monospace">
+                  + ${sp}
+                </button>`).join('')}
+            </div>` : ''}
         </div>
-        <div style="font-size:14px;font-weight:600;margin-bottom:3px">${e.title}</div>
-        <div style="font-size:11px;color:var(--muted)">${e.organizer ? e.organizer + ' · ' : ''}${e.date || 'Date TBC'}</div>
       </div>
-      <div style="font-size:12px;color:var(--accent2);font-family:DM Mono,monospace;flex-shrink:0">open ↗</div>
     </div>
   `).join('');
 }
@@ -808,7 +1034,7 @@ function switchTab(name) {
   if (name==='saved') renderSaved();
   if (name==='tracker') renderKanban();
   if (name==='vcs' && !allVCs.length) fetchVCs();
-  if (name==='people' && !allPeople.length) fetchPeople();
+  if (name==='people') { fetchPeople(); }
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
@@ -816,7 +1042,7 @@ function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.style.display = 'block';
-  setTimeout(() => t.style.display='none', 5000);
+  setTimeout(() => t.style.display='none', 4000);
 }
 
 // Init
