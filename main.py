@@ -297,178 +297,131 @@ async def get_people(tag: str = "", speaker: str = "", coffee: str = ""):
     return {"count": len(people), "people": people}
 
 
-# ─── EVENTS & SPEAKERS ───────────────────────────────────────────────────────
 
-async def scrape_eventbrite_sg(client: httpx.AsyncClient) -> list[dict]:
-    results = []
+# ─── EVENTS & SPEAKERS (Google Custom Search) ────────────────────────────────
+
+import os
+
+GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "")
+GOOGLE_CSE_ID  = os.environ.get("GOOGLE_CSE_ID", "")
+
+EVENT_QUERIES = [
+    "Singapore venture capital event speaker 2025 2026",
+    "Singapore startup investor conference 2026",
+    "Singapore VC PE networking event 2026",
+    "NUS fintech investment talk speaker Singapore",
+    "Singapore angel investor founder event 2026",
+]
+
+PEOPLE_QUERIES = [
+    "Singapore venture capital managing partner speaker",
+    "Singapore VC investor keynote 2025 2026",
+    "SEA venture capital general partner interview",
+    "Singapore startup ecosystem investor thought leader",
+]
+
+
+async def google_search(client: httpx.AsyncClient, query: str, num: int = 5) -> list:
+    if not GOOGLE_API_KEY or not GOOGLE_CSE_ID:
+        return []
     try:
-        urls = [
-            "https://www.eventbrite.sg/d/singapore--singapore/venture-capital/",
-            "https://www.eventbrite.sg/d/singapore--singapore/startup/",
-            "https://www.eventbrite.sg/d/singapore--singapore/finance/",
-        ]
-        for url in urls:
-            r = await client.get(url, headers=HEADERS, timeout=12)
-            soup = BeautifulSoup(r.text, "html.parser")
-            cards = soup.select("div[data-testid='event-card'], article.eds-event-card, .search-event-card-wrapper")
-            for card in cards[:8]:
-                title_el = card.select_one("h2, h3, .eds-event-card__formatted-name, [data-testid='event-card-title']")
-                date_el = card.select_one("time, .eds-text-color--ui-600, [data-testid='event-card-date']")
-                link_el = card.select_one("a")
-                org_el = card.select_one(".eds-event-card__sub-content, .organizer-name, [data-testid='organizer-name']")
-                if not title_el:
-                    continue
-                href = link_el.get("href", "") if link_el else ""
-                if href and not href.startswith("http"):
-                    href = "https://www.eventbrite.sg" + href
-                results.append({
-                    "title": title_el.get_text(strip=True),
-                    "organizer": org_el.get_text(strip=True) if org_el else "",
-                    "date": date_el.get_text(strip=True) if date_el else "",
-                    "url": href or url,
-                    "source": "Eventbrite",
-                    "speakers": [],
-                    "relevance": score_event_relevance(title_el.get_text(strip=True)),
-                })
+        r = await client.get(
+            "https://www.googleapis.com/customsearch/v1",
+            params={"key": GOOGLE_API_KEY, "cx": GOOGLE_CSE_ID, "q": query, "num": num},
+            timeout=10,
+        )
+        return r.json().get("items", [])
     except Exception as e:
-        print(f"Eventbrite error: {e}")
-    return results
+        print(f"Google search error: {e}")
+        return []
 
 
-async def scrape_techinasia(client: httpx.AsyncClient) -> list[dict]:
-    results = []
-    try:
-        url = "https://www.techinasia.com/events"
-        r = await client.get(url, headers=HEADERS, timeout=12)
-        soup = BeautifulSoup(r.text, "html.parser")
-        cards = soup.select("article, .event-card, .post-card, div[class*='event']")
-        for card in cards[:10]:
-            title_el = card.select_one("h2 a, h3 a, a[class*='title']")
-            date_el = card.select_one("time, span[class*='date'], div[class*='date']")
-            if not title_el:
-                continue
-            href = title_el.get("href", "")
-            if href and not href.startswith("http"):
-                href = "https://www.techinasia.com" + href
-            results.append({
-                "title": title_el.get_text(strip=True),
-                "organizer": "Tech in Asia",
-                "date": date_el.get_text(strip=True) if date_el else "",
-                "url": href or "https://www.techinasia.com/events",
-                "source": "Tech in Asia",
-                "speakers": [],
-                "relevance": score_event_relevance(title_el.get_text(strip=True)),
-            })
-    except Exception as e:
-        print(f"TechInAsia error: {e}")
-    return results
+def score_relevance(text: str) -> str:
+    t = text.lower()
+    if any(k in t for k in ["venture capital", " vc ", "private equity", " pe ",
+                              "investment bank", "fundraising", "series a", "pitch"]):
+        return "High"
+    if any(k in t for k in ["startup", "fintech", "founder", "investor",
+                              "entrepreneur", "accelerator", "angel", "seed"]):
+        return "Medium"
+    return "General"
 
 
-async def scrape_e27(client: httpx.AsyncClient) -> list[dict]:
-    results = []
-    try:
-        url = "https://e27.co/events/"
-        r = await client.get(url, headers=HEADERS, timeout=12)
-        soup = BeautifulSoup(r.text, "html.parser")
-        cards = soup.select("article, .event-item, div[class*='event']")
-        for card in cards[:10]:
-            title_el = card.select_one("h2 a, h3 a, h4 a, .entry-title a")
-            date_el = card.select_one("time, .date, span[class*='date']")
-            if not title_el:
-                continue
-            href = title_el.get("href", "")
-            results.append({
-                "title": title_el.get_text(strip=True),
-                "organizer": "e27",
-                "date": date_el.get_text(strip=True) if date_el else "",
-                "url": href or "https://e27.co/events/",
-                "source": "e27",
-                "speakers": [],
-                "relevance": score_event_relevance(title_el.get_text(strip=True)),
-            })
-    except Exception as e:
-        print(f"e27 error: {e}")
-    return results
-
-
-async def scrape_nus_events(client: httpx.AsyncClient) -> list[dict]:
-    results = []
-    try:
-        urls = [
-            "https://bschool.nus.edu.sg/events/",
-            "https://www.nus.edu.sg/cfg/events",
-        ]
-        for url in urls:
-            r = await client.get(url, headers=HEADERS, timeout=12)
-            soup = BeautifulSoup(r.text, "html.parser")
-            cards = soup.select("article, .event, .event-item, li[class*='event']")
-            for card in cards[:6]:
-                title_el = card.select_one("h2, h3, h4, a[class*='title']")
-                date_el = card.select_one("time, .date, span[class*='date']")
-                link_el = card.select_one("a")
-                if not title_el:
-                    continue
-                href = link_el.get("href", "") if link_el else ""
-                if href and not href.startswith("http"):
-                    href = "https://www.nus.edu.sg" + href
-                results.append({
-                    "title": title_el.get_text(strip=True),
-                    "organizer": "NUS",
-                    "date": date_el.get_text(strip=True) if date_el else "",
-                    "url": href or url,
-                    "source": "NUS",
-                    "speakers": [],
-                    "relevance": score_event_relevance(title_el.get_text(strip=True)),
-                })
-    except Exception as e:
-        print(f"NUS events error: {e}")
-    return results
-
-
-def score_event_relevance(title: str) -> str:
-    """Rate how relevant an event is for VC/finance networking"""
-    t = title.lower()
-    if any(k in t for k in ["venture capital", "vc", "private equity", "pe ", "investment banking",
-                              "startup funding", "series a", "fundraising", "pitch"]):
-        return "🔥 High"
-    if any(k in t for k in ["startup", "fintech", "founder", "investor", "entrepreneur",
-                              "accelerator", "incubator", "angel", "seed"]):
-        return "⭐ Medium"
-    return "· General"
-
-
-def deduplicate_events(events: list[dict]) -> list[dict]:
-    seen = set()
-    out = []
-    for e in events:
-        key = e["title"].lower()[:50]
-        if key not in seen and e["title"]:
-            seen.add(key)
-            e["id"] = len(out) + 1
-            out.append(e)
-    # Sort by relevance: High first
-    order = {"🔥 High": 0, "⭐ Medium": 1, "· General": 2}
-    out.sort(key=lambda x: order.get(x["relevance"], 3))
-    return out
+def extract_names(text: str) -> list:
+    import re
+    names = []
+    pats = [
+        r"(?:speaker|keynote|panelist|hosted by|by|featuring)\s*:?\s*([A-Z][a-z]+ [A-Z][a-z]+)",
+        r"([A-Z][a-z]+ [A-Z][a-z]+),\s*(?:Partner|Managing|General|Founder|CEO|Director|Head)",
+    ]
+    for pat in pats:
+        names.extend(re.findall(pat, text))
+    return list(set(names))[:3]
 
 
 @app.get("/events")
 async def get_events():
     async with httpx.AsyncClient(follow_redirects=True) as client:
+        all_items = []
         results = await asyncio.gather(
-            scrape_eventbrite_sg(client),
-            scrape_techinasia(client),
-            scrape_e27(client),
-            scrape_nus_events(client),
+            *[google_search(client, q, 5) for q in EVENT_QUERIES],
             return_exceptions=True
         )
-    all_events = []
-    for r in results:
-        if isinstance(r, list):
-            all_events.extend(r)
-    events = deduplicate_events(all_events)
-    return {
-        "count": len(events),
-        "events": events,
-        "scraped_at": datetime.utcnow().isoformat() + "Z",
-    }
+        for r in results:
+            if isinstance(r, list):
+                all_items.extend(r)
+
+    seen, events = set(), []
+    for item in all_items:
+        url = item.get("link", "")
+        title = item.get("title", "")
+        if url[:60] in seen or not title:
+            continue
+        seen.add(url[:60])
+        snippet = item.get("snippet", "")
+        rel = score_relevance(title + " " + snippet)
+        events.append({
+            "id": len(events) + 1,
+            "title": title,
+            "url": url,
+            "snippet": snippet[:200],
+            "source": item.get("displayLink", ""),
+            "speakers": extract_names(title + " " + snippet),
+            "relevance": rel,
+            "relevance_icon": {"High": "🔥", "Medium": "⭐", "General": "·"}[rel],
+        })
+
+    events.sort(key=lambda x: {"High": 0, "Medium": 1, "General": 2}.get(x["relevance"], 3))
+    return {"count": len(events), "events": events, "scraped_at": datetime.utcnow().isoformat() + "Z"}
+
+
+@app.get("/discover-people")
+async def discover_people():
+    async with httpx.AsyncClient(follow_redirects=True) as client:
+        all_items = []
+        results = await asyncio.gather(
+            *[google_search(client, q, 8) for q in PEOPLE_QUERIES],
+            return_exceptions=True
+        )
+        for r in results:
+            if isinstance(r, list):
+                all_items.extend(r)
+
+    seen, discovered = set(), []
+    for item in all_items:
+        url = item.get("link", "")
+        title = item.get("title", "")
+        if url[:60] in seen or not title:
+            continue
+        seen.add(url[:60])
+        snippet = item.get("snippet", "")
+        names = extract_names(title + " " + snippet)
+        discovered.append({
+            "title": title,
+            "url": url,
+            "snippet": snippet[:200],
+            "source": item.get("displayLink", ""),
+            "possible_people": names,
+        })
+
+    return {"count": len(discovered), "results": discovered, "scraped_at": datetime.utcnow().isoformat() + "Z"}
