@@ -444,7 +444,7 @@ td { padding: 13px 14px; vertical-align: middle; }
       <div class="page-header">
         <div>
           <div class="page-title">Key People</div>
-          <div class="page-sub">AI-analysed — background · speaker fit · outreach templates</div>
+          <div class="page-sub">Background · topics · appearances · useful links</div>
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn-scrape" onclick="openAddPerson()" style="height:38px;background:var(--surface);color:var(--text);border:1px solid var(--border)">+ Add Person</button>
@@ -471,16 +471,16 @@ td { padding: 13px 14px; vertical-align: middle; }
     <!-- Add Person Modal -->
     <div id="add-person-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;align-items:center;justify-content:center;">
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px;width:460px;max-width:90vw;">
-        <div style="font-size:16px;font-weight:700;margin-bottom:20px">Add Person for AI Analysis</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:20px">Add Person</div>
         <div style="display:flex;flex-direction:column;gap:12px;">
           <input id="ap-name" placeholder="Full name (e.g. Yinglan Tan)" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:var(--text);font-size:13px;font-family:Syne,sans-serif;outline:none;" />
           <input id="ap-firm" placeholder="Firm (e.g. Insignia Ventures)" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:var(--text);font-size:13px;font-family:Syne,sans-serif;outline:none;" />
           <input id="ap-role" placeholder="Role (e.g. Managing Partner)" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:var(--text);font-size:13px;font-family:Syne,sans-serif;outline:none;" />
-          <input id="ap-context" placeholder="Context — where did you find them? (optional)" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:var(--text);font-size:13px;font-family:Syne,sans-serif;outline:none;" />
+          <input id="ap-context" placeholder="Notes / source event / useful links (optional)" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:var(--text);font-size:13px;font-family:Syne,sans-serif;outline:none;" />
           <div id="ap-status" style="font-size:12px;color:var(--muted);font-family:DM Mono,monospace;min-height:16px;"></div>
           <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
             <button onclick="closeAddPerson()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:8px 16px;color:var(--muted);font-size:13px;cursor:pointer">Cancel</button>
-            <button onclick="analyseAndAdd()" id="ap-btn" style="background:var(--accent);border:none;border-radius:6px;padding:8px 16px;color:#000;font-size:13px;font-weight:700;cursor:pointer">Analyse with AI →</button>
+            <button onclick="addPersonManual()" id="ap-btn" style="background:var(--accent);border:none;border-radius:6px;padding:8px 16px;color:#000;font-size:13px;font-weight:700;cursor:pointer">Add Person</button>
           </div>
         </div>
       </div>
@@ -687,7 +687,7 @@ function addToKanban(stage) {
   renderKanban();
 }
 
-// ── State VC/People ──────────────────────────────────────────────────────────
+// ── State VC ────────────────────────────────────────────────────────────────
 let allVCs = [];
 
 // ── Fetch VCs ─────────────────────────────────────────────────────────────────
@@ -731,7 +731,7 @@ function renderVCs() {
   `).join('');
 }
 
-// ── People (AI-powered) ───────────────────────────────────────────────────────
+// ── People ───────────────────────────────────────────────────────────────────
 let allPeople = JSON.parse(localStorage.getItem('people_db') || '[]');
 let allEvents = [];
 
@@ -739,16 +739,53 @@ function savePeopleDB() {
   localStorage.setItem('people_db', JSON.stringify(allPeople));
 }
 
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function normalizeLinks(p) {
+  const links = [];
+  if (p.linkedin) links.push({ label: 'LinkedIn', url: p.linkedin });
+  if (p.website) links.push({ label: 'Website', url: p.website });
+  if (p.source_url) links.push({ label: 'Source', url: p.source_url });
+
+  const text = [p.note, p.background, p.source_event].filter(Boolean).join(' ');
+  const urls = text.match(/https?:\/\/[^\s)]+/g) || [];
+  urls.forEach((url, i) => links.push({ label: `Link ${i + 1}`, url }));
+
+  const seen = new Set();
+  return links.filter(link => {
+    if (!link.url || seen.has(link.url)) return false;
+    seen.add(link.url);
+    return true;
+  });
+}
+
+function getAppearances(p) {
+  const appearances = [];
+  if (Array.isArray(p.appearances)) appearances.push(...p.appearances);
+  if (Array.isArray(p.events)) appearances.push(...p.events);
+  if (p.source_event) appearances.push(p.source_event);
+  if (p.note) appearances.push(p.note);
+  if (!appearances.length) {
+    appearances.push('No specific past activity saved yet. Add notes or links with “+ Add Person”, or add someone from the Events tab.');
+  }
+  return [...new Set(appearances.filter(Boolean))];
+}
+
 async function fetchPeople() {
-  // Merge static backend list with local AI-analysed list
   try {
     const r = await fetch(API + '/people');
     const data = await r.json();
-    // Only add backend people not already in local DB
-    const localNames = new Set(allPeople.map(p => p.name.toLowerCase()));
+    const localNames = new Set(allPeople.map(p => (p.name || '').toLowerCase()));
     for (const p of (data.people || [])) {
-      if (!localNames.has(p.name.toLowerCase())) {
-        allPeople.push({ ...p, source: 'static', ai_analysis: null });
+      if (!localNames.has((p.name || '').toLowerCase())) {
+        allPeople.push({ ...p, source: 'static' });
       }
     }
     savePeopleDB();
@@ -769,25 +806,24 @@ function renderPeople() {
       No people yet.<br><br>
       <strong style="color:var(--text)">How to add:</strong><br>
       1. Go to Events → search for VC events<br>
-      2. Click "+ Add to People" on any speaker<br>
-      3. Or click "+ Add Person" above
+      2. Click a possible speaker chip<br>
+      3. Or click “+ Add Person” above
     </div>`;
     return;
   }
   grid.innerHTML = people.map((p, idx) => {
-    const hasAnalysis = p.ai_analysis;
-    const speakerScore = p.speaker_fit || 0;
-    const coffeeScore = p.coffee_chat_fit || 0;
+    const speakerScore = Math.max(0, Math.min(5, p.speaker_fit || 0));
+    const coffeeScore = Math.max(0, Math.min(5, p.coffee_chat_fit || 0));
+    const tags = p.tags || [];
     return `
-    <div style="background:var(--surface);border:1px solid ${hasAnalysis ? 'rgba(74,222,128,0.3)' : 'var(--border)'};border-radius:10px;padding:18px 20px;">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 20px;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
         <div>
-          <div style="font-size:16px;font-weight:700">${p.name}</div>
-          <div style="font-size:12px;color:var(--accent);margin-top:2px">${p.role||''}</div>
-          <div style="font-size:11px;color:var(--muted)">${p.firm||''}</div>
+          <div style="font-size:16px;font-weight:700">${escapeHtml(p.name)}</div>
+          <div style="font-size:12px;color:var(--accent);margin-top:2px">${escapeHtml(p.role||'')}</div>
+          <div style="font-size:11px;color:var(--muted)">${escapeHtml(p.firm||'')}</div>
         </div>
         <div style="display:flex;gap:6px;align-items:center">
-          ${hasAnalysis ? '<span style="font-size:10px;padding:2px 7px;border-radius:3px;background:rgba(74,222,128,0.12);color:var(--accent);font-family:DM Mono,monospace">AI ✓</span>' : ''}
           <button onclick="viewPerson(${idx})" style="font-size:11px;padding:4px 10px;border-radius:4px;border:1px solid var(--border);background:none;color:var(--accent2);cursor:pointer;font-family:DM Mono,monospace">View →</button>
           <button onclick="deletePerson(${idx})" style="font-size:11px;padding:4px 8px;border-radius:4px;border:1px solid var(--border);background:none;color:var(--muted);cursor:pointer">✕</button>
         </div>
@@ -796,62 +832,60 @@ function renderPeople() {
         <span>Speaker <span style="color:${speakerScore>=4?'var(--accent)':'var(--muted)'}">${'★'.repeat(speakerScore)}${'☆'.repeat(5-speakerScore)}</span></span>
         <span>Coffee Chat <span style="color:${coffeeScore>=4?'var(--accent3)':'var(--muted)'}">${'★'.repeat(coffeeScore)}${'☆'.repeat(5-coffeeScore)}</span></span>
       </div>
-      ${p.source_event ? `<div style="font-size:10px;color:var(--muted);margin-top:8px;font-family:DM Mono,monospace">from event: ${p.source_event}</div>` : ''}
-      ${hasAnalysis && p.ai_analysis.key_angle ? `<div style="font-size:11px;color:var(--accent3);margin-top:8px;font-style:italic">"${p.ai_analysis.key_angle}"</div>` : ''}
-      ${!hasAnalysis ? `<button onclick="runAIAnalysis(${idx})" style="margin-top:10px;font-size:11px;padding:5px 12px;border-radius:4px;border:1px solid var(--accent);background:none;color:var(--accent);cursor:pointer;font-family:DM Mono,monospace">✦ Run AI Analysis</button>` : ''}
+      ${tags.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">${tags.slice(0,5).map(t=>`<span style="font-size:10px;padding:2px 7px;border-radius:3px;background:var(--surface2);color:var(--muted);font-family:DM Mono,monospace">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+      ${p.source_event ? `<div style="font-size:10px;color:var(--muted);margin-top:8px;font-family:DM Mono,monospace">from: ${escapeHtml(p.source_event)}</div>` : ''}
     </div>`;
   }).join('');
 }
 
 function viewPerson(idx) {
   const p = allPeople[idx];
-  const a = p.ai_analysis;
   const modal = document.getElementById('person-detail-modal');
   const content = document.getElementById('person-detail-content');
+  const speakerScore = Math.max(0, Math.min(5, p.speaker_fit || 0));
+  const coffeeScore = Math.max(0, Math.min(5, p.coffee_chat_fit || 0));
+  const topics = p.topics || p.tags || [];
+  const appearances = getAppearances(p);
+  const links = normalizeLinks(p);
+
   content.innerHTML = `
-    <div style="font-size:20px;font-weight:700;margin-bottom:4px">${p.name}</div>
-    <div style="font-size:13px;color:var(--accent);margin-bottom:2px">${p.role||''}</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:20px">${p.firm||''}</div>
-    ${a ? `
-      <div style="display:flex;flex-direction:column;gap:16px">
-        <div>
-          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-family:DM Mono,monospace;margin-bottom:6px">Background</div>
-          <div style="font-size:13px;line-height:1.7;color:var(--text)">${a.background||p.background||'–'}</div>
+    <div style="font-size:20px;font-weight:700;margin-bottom:4px">${escapeHtml(p.name)}</div>
+    <div style="font-size:13px;color:var(--accent);margin-bottom:2px">${escapeHtml(p.role||'')}</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:20px">${escapeHtml(p.firm||'')}</div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div>
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-family:DM Mono,monospace;margin-bottom:6px">Background</div>
+        <div style="font-size:13px;line-height:1.7;color:var(--text)">${escapeHtml(p.background || p.note || 'No background saved yet.')}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div style="background:var(--surface2);border-radius:8px;padding:12px">
+          <div style="font-size:10px;color:var(--muted);font-family:DM Mono,monospace;margin-bottom:4px">SPEAKER FIT</div>
+          <div style="font-size:22px;font-weight:700;color:var(--accent)">${'★'.repeat(speakerScore)}${'☆'.repeat(5-speakerScore)}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">${escapeHtml(p.note || 'Manual/static score. No paid API call is used.')}</div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <div style="background:var(--surface2);border-radius:8px;padding:12px">
-            <div style="font-size:10px;color:var(--muted);font-family:DM Mono,monospace;margin-bottom:4px">SPEAKER FIT</div>
-            <div style="font-size:22px;font-weight:700;color:var(--accent)">${'★'.repeat(p.speaker_fit||0)}</div>
-            <div style="font-size:11px;color:var(--muted);margin-top:4px">${a.speaker_reason||''}</div>
-          </div>
-          <div style="background:var(--surface2);border-radius:8px;padding:12px">
-            <div style="font-size:10px;color:var(--muted);font-family:DM Mono,monospace;margin-bottom:4px">COFFEE CHAT FIT</div>
-            <div style="font-size:22px;font-weight:700;color:var(--accent3)">${'★'.repeat(p.coffee_chat_fit||0)}</div>
-            <div style="font-size:11px;color:var(--muted);margin-top:4px">${a.coffee_reason||''}</div>
-          </div>
-        </div>
-        <div>
-          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-family:DM Mono,monospace;margin-bottom:8px">Suggested Topics</div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
-            ${(a.topics||[]).map(t=>`<span style="font-size:11px;padding:3px 9px;border-radius:4px;background:rgba(96,165,250,0.1);color:var(--accent2);font-family:DM Mono,monospace">${t}</span>`).join('')}
-          </div>
-        </div>
-        <div>
-          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-family:DM Mono,monospace;margin-bottom:8px">Events / Appearances</div>
-          <div style="font-size:12px;line-height:1.8;color:var(--text)">${(a.appearances||[]).map(ap=>`• ${ap}`).join('<br>')|| '–'}</div>
-        </div>
-        <div>
-          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-family:DM Mono,monospace;margin-bottom:8px">Cold Outreach Template</div>
-          <div style="background:var(--surface2);border-radius:8px;padding:14px;font-size:12px;line-height:1.8;color:var(--text);white-space:pre-wrap;font-family:DM Mono,monospace">${a.outreach_template||'–'}</div>
-          <button onclick="navigator.clipboard.writeText(${JSON.stringify(a.outreach_template||'').replace(/"/g,'&quot;')});showToast('Copied!')" style="margin-top:8px;font-size:11px;padding:5px 12px;border-radius:4px;border:1px solid var(--border);background:none;color:var(--muted);cursor:pointer;font-family:DM Mono,monospace">Copy</button>
+        <div style="background:var(--surface2);border-radius:8px;padding:12px">
+          <div style="font-size:10px;color:var(--muted);font-family:DM Mono,monospace;margin-bottom:4px">COFFEE CHAT FIT</div>
+          <div style="font-size:22px;font-weight:700;color:var(--accent3)">${'★'.repeat(coffeeScore)}${'☆'.repeat(5-coffeeScore)}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Use this as a rough networking priority score.</div>
         </div>
       </div>
-    ` : `
-      <div style="text-align:center;padding:40px 0;color:var(--muted);font-family:DM Mono,monospace;font-size:13px">
-        No AI analysis yet.<br><br>
-        <button onclick="closePersonDetail();runAIAnalysis(${idx})" style="margin-top:12px;font-size:12px;padding:8px 18px;border-radius:6px;border:1px solid var(--accent);background:none;color:var(--accent);cursor:pointer;font-family:DM Mono,monospace">✦ Run AI Analysis Now</button>
+      <div>
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-family:DM Mono,monospace;margin-bottom:8px">Topics / Tags</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${topics.length ? topics.map(t=>`<span style="font-size:11px;padding:3px 9px;border-radius:4px;background:rgba(96,165,250,0.1);color:var(--accent2);font-family:DM Mono,monospace">${escapeHtml(t)}</span>`).join('') : '<span style="font-size:12px;color:var(--muted)">No tags saved yet.</span>'}
+        </div>
       </div>
-    `}
+      <div>
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-family:DM Mono,monospace;margin-bottom:8px">Past Activities / Appearances</div>
+        <div style="font-size:12px;line-height:1.8;color:var(--text)">${appearances.map(ap=>`• ${escapeHtml(ap)}`).join('<br>')}</div>
+      </div>
+      <div>
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-family:DM Mono,monospace;margin-bottom:8px">Useful Links</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${links.length ? links.map(link=>`<a href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer" style="font-size:11px;padding:5px 10px;border-radius:4px;border:1px solid var(--border);color:var(--accent2);text-decoration:none;font-family:DM Mono,monospace">${escapeHtml(link.label)} ↗</a>`).join('') : '<span style="font-size:12px;color:var(--muted)">No links saved yet.</span>'}
+        </div>
+      </div>
+    </div>
   `;
   modal.style.display = 'flex';
 }
@@ -880,89 +914,39 @@ function closeAddPerson() {
   document.getElementById('add-person-modal').style.display = 'none';
 }
 
-async function analyseAndAdd() {
+function addPersonManual() {
   const name = document.getElementById('ap-name').value.trim();
   const firm = document.getElementById('ap-firm').value.trim();
   const role = document.getElementById('ap-role').value.trim();
   const context = document.getElementById('ap-context').value.trim();
   if (!name) { alert('Please enter a name'); return; }
 
-  const btn = document.getElementById('ap-btn');
-  const status = document.getElementById('ap-status');
-  btn.disabled = true;
-  btn.textContent = 'Analysing…';
-  status.textContent = 'Calling Claude AI…';
+  const person = {
+    name,
+    firm,
+    role,
+    source_event: context || null,
+    background: context || '',
+    note: context || '',
+    speaker_fit: 3,
+    coffee_chat_fit: 3,
+    tags: [],
+    source: 'manual',
+    added_at: new Date().toISOString(),
+  };
 
-  try {
-    const prompt = `You are a Singapore VC ecosystem expert helping an NUS Masters student plan networking and speaker invitations.
-
-Analyse this person and return ONLY valid JSON (no markdown, no explanation):
-Name: ${name}
-Firm: ${firm}
-Role: ${role}
-${context ? 'Context: ' + context : ''}
-
-Return this exact JSON structure:
-{
-  "background": "2-3 sentence summary of their career, focus areas, and influence in SEA VC ecosystem",
-  "speaker_fit": <integer 1-5, how good as a speaker for NUS student events>,
-  "speaker_reason": "one sentence why",
-  "coffee_chat_fit": <integer 1-5, how approachable for a cold outreach coffee chat>,
-  "coffee_reason": "one sentence why",
-  "key_angle": "the single most compelling reason to reach out to them",
-  "topics": ["topic1", "topic2", "topic3", "topic4"],
-  "appearances": ["brief description of known events/talks/podcasts they have appeared in"],
-  "outreach_template": "Hi [Name],\n\nI'm [Your Name], an NUS Masters student in [programme]. [personalised hook about their work or a specific talk/article]. [specific ask - speaker invitation or coffee chat]. [brief value prop - what's in it for them].\n\nBest,\n[Your Name]",
-  "tags": ["tag1", "tag2"]
-}`;
-
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-    const data = await response.json();
-    const text = data.content?.[0]?.text || '';
-    const clean = text.replace(/```json|```/g, '').trim();
-    const analysis = JSON.parse(clean);
-
-    const person = {
-      name, firm, role,
-      source_event: context || null,
-      speaker_fit: analysis.speaker_fit,
-      coffee_chat_fit: analysis.coffee_chat_fit,
-      tags: analysis.tags || [],
-      ai_analysis: analysis,
-      added_at: new Date().toISOString(),
-    };
-
+  const existingIdx = allPeople.findIndex(p => (p.name || '').toLowerCase() === name.toLowerCase());
+  if (existingIdx >= 0) {
+    allPeople[existingIdx] = { ...allPeople[existingIdx], ...person };
+  } else {
     allPeople.unshift(person);
-    savePeopleDB();
-    closeAddPerson();
-    switchTab('people');
-    renderPeople();
-    showToast(`${name} added with AI analysis ✓`);
-  } catch(e) {
-    status.textContent = 'Error: ' + e.message;
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Analyse with AI →';
   }
-}
 
-async function runAIAnalysis(idx) {
-  const p = allPeople[idx];
-  const grid = document.getElementById('people-grid');
-  showToast(`Running AI analysis for ${p.name}…`);
-  // Reuse analyseAndAdd logic by filling modal and submitting
-  openAddPerson({ name: p.name, firm: p.firm, role: p.role });
-  // Remove old entry first
-  allPeople.splice(idx, 1);
   savePeopleDB();
+  closeAddPerson();
+  switchTab('people');
+  renderPeople();
+  showToast(`${name} added ✓`);
 }
 
 // ── Events ───────────────────────────────────────────────────────────────────
